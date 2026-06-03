@@ -11,16 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function CarList({ 
-  initialData, 
-  searchParams 
-}: { 
-  initialData: CarListPaginationParams, 
-  searchParams: { [key: string]: string | undefined } 
+export default function CarList({ initialData, searchParams }: {
+  initialData: CarListPaginationParams,
+  searchParams: { [key: string]: string | undefined }
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // No more apiFetch! The server passes the exact rendered view.
   const data = initialData?.data || [];
   const pagination = initialData ? {
@@ -28,12 +25,12 @@ export default function CarList({
     last_page: initialData.last_page,
     total: initialData.total
   } : { current_page: 1, last_page: 1, total: 0 };
-  
+
   // Filters mirror the URL accurately instead of empty local state
   const [search, setSearch] = useState(searchParams?.search || '');
   const [status, setStatus] = useState(searchParams?.status || 'all');
   const [color, setColor] = useState(searchParams?.color || 'all');
-  
+
   // Push query dynamically through URL to invoke NextJS SSR rerender
   const updateQuery = (key: string, value: string) => {
     const params = new URLSearchParams(window.location.search);
@@ -44,7 +41,7 @@ export default function CarList({
     }
     // Reset page to 1 on any filter change
     if (key !== 'page') params.delete('page');
-    
+
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -83,7 +80,7 @@ export default function CarList({
                 onKeyDown={handleSearchSubmit}
               />
             </div>
-            
+
             <Select value={status} onValueChange={(val) => { setStatus(val || 'all'); updateQuery('status', val || 'all'); }}>
               <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Status" />
@@ -127,19 +124,19 @@ export default function CarList({
                 data.map((row: any) => {
                   const entryTime = new Date(row.entry_time);
                   const exitTime = row.exit_time ? new Date(row.exit_time) : null;
-                  const durationStr = exitTime 
+                  const durationStr = exitTime
                     ? (() => {
-                        const diffMs = exitTime.getTime() - entryTime.getTime();
-                        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                        return `${diffHrs}h ${diffMins}m`;
-                      })()
+                      const diffMs = exitTime.getTime() - entryTime.getTime();
+                      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                      return `${diffHrs}h ${diffMins}m`;
+                    })()
                     : '--';
 
                   return (
-                    <TableRow 
-                      key={row.id} 
-                      className="hover:bg-accent cursor-pointer transition-colors" 
+                    <TableRow
+                      key={row.id}
+                      className="hover:bg-accent cursor-pointer transition-colors"
                       onClick={() => openDetails(row)}
                     >
                       <TableCell className="font-medium tracking-wider">{row.license_plate}</TableCell>
@@ -173,17 +170,17 @@ export default function CarList({
               Showing {pagination.total > 0 ? (pagination.current_page - 1) * 15 + 1 : 0} to {Math.min(pagination.current_page * 15, pagination.total)} of {pagination.total} results
             </CardDescription>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => updateQuery('page', String(pagination.current_page - 1))}
                 disabled={pagination.current_page <= 1}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Prev
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => updateQuery('page', String(pagination.current_page + 1))}
                 disabled={pagination.current_page >= pagination.last_page || pagination.last_page === 0}
               >

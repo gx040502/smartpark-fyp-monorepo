@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParkingSessionController;
 use App\Http\Controllers\RoiController;
+use App\Http\Controllers\AiQueryController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -14,6 +15,9 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Python Webhook (would normally have its own auth/token, but public for mockup)
 Route::post('/webhooks/congestion', [RoiController::class, 'webhookCongestionAlert']);
+
+// AI Agent — SQL execution endpoint (called by the Python AI service)
+Route::post('/ai/query', [AiQueryController::class, 'execute']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {

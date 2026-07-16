@@ -2,6 +2,7 @@ import MetricsCards from '@/components/dashboard/MetricsCards';
 import PeakHoursChart from '@/components/dashboard/PeakHoursChart';
 import RevenueTrendsChart from '@/components/dashboard/RevenueTrendsChart';
 import LiveCameraSimulation from '@/components/dashboard/LiveCameraSimulation';
+import ExitAlerts from '@/components/dashboard/ExitAlerts';
 
 export default function Dashboard({ 
   metrics, 
@@ -22,6 +23,8 @@ export default function Dashboard({
       </div>
 
       <MetricsCards initialData={metrics} />
+      
+      <ExitAlerts />
 
       <div className="grid gap-6 md:grid-cols-3">
         <PeakHoursChart initialData={peakHours} />

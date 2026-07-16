@@ -19,9 +19,11 @@ class PaymentReceipt extends Model
      */
     protected $fillable = [
         'parking_session_id',
+        'receipt_number',
         'total_amount',
         'payment_date',
         'payment_method',
+        'payment_type',
     ];
 
     /**

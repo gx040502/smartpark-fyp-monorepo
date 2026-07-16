@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParkingSessionController;
 use App\Http\Controllers\RoiController;
 use App\Http\Controllers\AiQueryController;
+use App\Http\Controllers\ExitAlertController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -18,6 +19,17 @@ Route::post('/webhooks/congestion', [RoiController::class, 'webhookCongestionAle
 
 // AI Agent — SQL execution endpoint (called by the Python AI service)
 Route::post('/ai/query', [AiQueryController::class, 'execute']);
+
+// Python LPR — creates a new parking session when a car enters
+Route::post('/parking-sessions/car-entry', [ParkingSessionController::class, 'carEntry']);
+
+// Python LPR — exit gate verification
+Route::post('/parking-sessions/car-exit', [ParkingSessionController::class, 'carExit']);
+
+// Mobile App routes (Public, for Drivers)
+Route::get('/parking-sessions/plate/{license_plate}', [ParkingSessionController::class, 'findByPlate']);
+Route::post('/parking-sessions/{id}/pay', [ParkingSessionController::class, 'pay']);
+Route::post('/parking-sessions/{id}/pay-additional', [ParkingSessionController::class, 'payAdditional']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -39,4 +51,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ROI
     Route::post('/roi/coordinates', [RoiController::class, 'setCoordinates']);
+
+    // Exit Alerts
+    Route::get('/exit-alerts', [ExitAlertController::class, 'index']);
+    Route::put('/exit-alerts/{id}/dismiss', [ExitAlertController::class, 'dismiss']);
+    Route::put('/exit-alerts/{id}/override', [ExitAlertController::class, 'override']);
 });

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Car, FileText, Clock, Calendar } from 'lucide-react';
+import { ArrowLeft, Car, FileText, Clock, Calendar, Receipt, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function CarDetails({ initialSession, id }: { initialSession: any, id: string }) {
@@ -21,6 +21,14 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
     }
   };
 
+  const getPaymentTypeBadge = (type: string) => {
+    switch (type) {
+      case 'initial': return <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 text-xs">Initial</Badge>;
+      case 'additional': return <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-xs">Additional</Badge>;
+      default: return <Badge variant="secondary" className="text-xs">{type}</Badge>;
+    }
+  };
+
   if (!session) {
     return (
       <div className="p-6 flex flex-col items-center justify-center min-h-[50vh]">
@@ -29,6 +37,10 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
       </div>
     );
   }
+
+  // Use payment_receipts (plural array) from the API
+  const receipts = session.payment_receipts || [];
+  const totalPaid = receipts.reduce((sum: number, r: any) => sum + parseFloat(r.total_amount || 0), 0);
 
   return (
     <div className="p-6 md:p-8 flex-1 space-y-6 bg-slate-50 min-h-[calc(100vh-64px)] animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -76,7 +88,7 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
               <CardDescription>{new Date(session.entry_time).toLocaleString()}</CardDescription>
             </div>
 
-            <div className=" flexspace-y-1 mt-4">
+            <div className="space-y-1 mt-4">
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-3.5 w-3.5" />
                 Exit Time
@@ -96,31 +108,52 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            {session.payment_receipt ? (
-              <div className="space-y-6">
-                <div className="space-y-1">
-                  <CardTitle>Receipt ID</CardTitle>
-                  <CardDescription className="font-bold">#RCT-{session.payment_receipt.id.toString().padStart(6, '0')}</CardDescription>
-                </div>
+            {receipts.length > 0 ? (
+              <div className="space-y-5">
+                {/* Individual Receipts */}
+                {receipts.map((receipt: any, index: number) => (
+                  <div key={receipt.id} className={`space-y-3 ${index > 0 ? 'pt-4 border-t border-dashed border-gray-200' : ''}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Receipt className="h-4 w-4 text-gray-400" />
+                        <span className="font-semibold text-sm text-gray-700">
+                          {receipt.receipt_number || `#RCT-${receipt.id.toString().padStart(6, '0')}`}
+                        </span>
+                      </div>
+                      {getPaymentTypeBadge(receipt.payment_type)}
+                    </div>
 
-                <div className="space-y-1">
-                  <CardTitle>Payment Method</CardTitle>
-                  <CardDescription className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-                    {session.payment_receipt.payment_method}
-                  </CardDescription>
-                </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Payment Method</p>
+                        <p className="font-medium flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                          {receipt.payment_method}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Date</p>
+                        <p className="font-medium">{new Date(receipt.payment_date).toLocaleString()}</p>
+                      </div>
+                    </div>
 
-                <div className="space-y-1">
-                  <CardTitle>Payment Date</CardTitle>
-                  <CardDescription>{new Date(session.payment_receipt.payment_date).toLocaleString()}</CardDescription>
-                </div>
+                    <div className="flex justify-end">
+                      <span className="font-bold text-emerald-600">
+                        RM {parseFloat(receipt.total_amount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
 
-                <div className="space-y-1 pt-2 border-t">
-                  <CardTitle>Total Amount</CardTitle>
-                  <CardDescription className="font-bold text-2xl text-emerald-600">
-                    RM {parseFloat(session.payment_receipt.total_amount).toFixed(2)}
-                  </CardDescription>
+                {/* Total Paid Summary */}
+                <div className="pt-4 border-t-2 border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-emerald-600" />
+                    <CardTitle>Total Paid</CardTitle>
+                  </div>
+                  <span className="font-bold text-2xl text-emerald-600">
+                    RM {totalPaid.toFixed(2)}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -129,9 +162,13 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
                   <FileText className="h-6 w-6 text-amber-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">No Receipt Linked</h3>
+                  <h3 className="font-medium text-gray-900">
+                    {session.status === 'ENTER' ? 'Payment Pending' : 'No Receipt Linked'}
+                  </h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-[250px]">
-                    This session has not processed a payment receipt yet or it is still active inside the facility.
+                    {session.status === 'ENTER'
+                      ? `Current running fee: RM ${parseFloat(session.amount_due || 0).toFixed(2)}`
+                      : 'This session has not processed a payment receipt yet.'}
                   </p>
                 </div>
               </div>

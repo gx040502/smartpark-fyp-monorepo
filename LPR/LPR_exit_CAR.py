@@ -1,18 +1,19 @@
 """
-LPR_EXIT.py — SmartPark Exit Gate License Plate Recognition Pipeline
+LPR_exit_CAR.py — SmartPark Exit Gate License Plate Recognition Pipeline
 ═══════════════════════════════════════════════════════════════════════════════════
 A standalone script that combines:
-  1. License Plate Detection   — YOLOv11
-  2. Image Enhancement         — Isolate, Deskew, Invert, CLAHE, Sharpen, Gamma
-  3. Character Recognition     — YOLOv11 OCR
-  4. Car Attribute Extraction  — Qwen3-VL (color & brand) [SYNCHRONOUS]
-  5. Exit Verification         — HTTP POST to Laravel backend (allow / deny)
+  1. Car Detection & Tracking  — YOLOv11
+  2. License Plate Detection   — YOLOv11 (Runs inside Car Crop)
+  3. Image Enhancement         — Isolate, Deskew, Invert, CLAHE, Sharpen, Gamma
+  4. Character Recognition     — YOLOv11 OCR
+  5. Car Attribute Extraction  — Qwen3-VL (color & brand) [SYNCHRONOUS]
+  6. Exit Verification         — HTTP POST to Laravel backend (allow / deny)
 
 Usage:
-    python LPR_EXIT.py
-    python LPR_EXIT.py --video path/to/video.mp4
-    python LPR_EXIT.py --video path/to/video.mp4 --output output.mp4
-    python LPR_EXIT.py --no-save-video
+    python LPR_exit_CAR.py
+    python LPR_exit_CAR.py --video path/to/video.mp4
+    python LPR_exit_CAR.py --video path/to/video.mp4 --output output.mp4
+    python LPR_exit_CAR.py --no-save-video
 """
 
 import argparse
@@ -24,7 +25,7 @@ import requests
 import torch
 from dotenv import load_dotenv
 from PIL import Image
-from ultralytics import YOLO
+from ultrultralytics import YOLO
 
 try:
     from transformers import Qwen3VLForConditionalGeneration
@@ -41,6 +42,7 @@ from huggingface_hub import login
 load_dotenv()
 
 # Model Paths
+CAR_MODEL_PATH = r"G:\My Drive\FYP\CAR MODEL\outputs\car_mixed\yolo11_run_01\weights\best.pt"
 PLATE_MODEL_PATH = r"G:\My Drive\FYP\LICENSE PLATE\outputs\License-Plate-Recognition-11\yolo11_run_02\weights\best.pt"
 OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo11_run_01\weights\best.pt"
 
@@ -55,7 +57,7 @@ LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1:8000")
 QWEN_MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
 
 # Application Settings
-EXPANSION_FACTOR = 6.0
+CAR_CONFIDENCE_THRESHOLD = 0.5
 PLATE_CONFIDENCE_THRESHOLD = 0.3
 OCR_CONFIDENCE_THRESHOLD = 0.7
 SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
@@ -67,12 +69,16 @@ SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
 
 def load_all_models():
     """
-    Load and return all three models used in the pipeline:
+    Load and return all four models used in the pipeline:
+      - YOLO car detector
       - YOLO plate detector
       - YOLO OCR character recogniser
       - Qwen3-VL vision-language model (for car color & brand)
     """
     print("--- LOADING MODELS (This may take a minute) ---")
+
+    car_model = YOLO(CAR_MODEL_PATH)
+    print("✅ Loaded YOLO Car Model.")
 
     plate_model = YOLO(PLATE_MODEL_PATH)
     print("✅ Loaded YOLO Plate Model.")
@@ -102,7 +108,7 @@ def load_all_models():
     processor = AutoProcessor.from_pretrained(QWEN_MODEL_ID, trust_remote_code=True)
     print("✅ Loaded Qwen Model.")
 
-    return plate_model, ocr_model, qwen_model, processor, device
+    return car_model, plate_model, ocr_model, qwen_model, processor, device
 
 
 # ==============================================================================================================
@@ -375,7 +381,7 @@ def verify_and_exit(plate_number, color, model, car_crop_bgr):
 # ==============================================================================================================
 
 def process_video(input_video, output_video, save_video):
-    plate_model, ocr_model, qwen_model, processor, device = load_all_models()
+    car_model, plate_model, ocr_model, qwen_model, processor, device = load_all_models()
 
     processed_track_ids = set()  
     track_history = {}           
@@ -392,7 +398,7 @@ def process_video(input_video, output_video, save_video):
         fps = 30  
 
     min_frames_to_confirm = int(fps * SECONDS_TO_CONFIRM)
-    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames ({SECONDS_TO_CONFIRM} seconds) to confirm plates.")
+    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames to confirm cars.")
 
     out = None
     if save_video:
@@ -408,9 +414,10 @@ def process_video(input_video, output_video, save_video):
         if not ret:
             break
 
-        results = plate_model.track(
+        # 🚀 TRACK CARS INSTEAD OF PLATES
+        results = car_model.track(
             frame, persist=True, tracker="bytetrack.yaml",
-            conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False
+            conf=CAR_CONFIDENCE_THRESHOLD, verbose=False
         )
 
         if results[0].boxes is not None and results[0].boxes.id is not None:
@@ -418,110 +425,120 @@ def process_video(input_video, output_video, save_video):
             track_ids = results[0].boxes.id.cpu().numpy().astype(int)
 
             for box, track_id in zip(boxes, track_ids):
-                x1, y1, x2, y2 = box
+                cx1, cy1, cx2, cy2 = box
+                
+                # Clamp car coordinates to frame boundaries
+                cx1, cy1 = max(0, cx1), max(0, cy1)
+                cx2, cy2 = min(frame_width, cx2), min(frame_height, cy2)
 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                # Draw Car Box (Blue)
+                cv2.rectangle(frame, (cx1, cy1), (cx2, cy2), (255, 0, 0), 2)
 
                 track_history[track_id] = track_history.get(track_id, 0) + 1
                 frames_seen = track_history[track_id]
 
                 if track_id in processed_track_ids:
-                    cv2.putText(frame, "Processed", (x1, y1 - 10),
+                    cv2.putText(frame, "Processed", (cx1, cy1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     continue
 
                 if frames_seen < min_frames_to_confirm:
-                    cv2.putText(frame, f"Tracking... {frames_seen}/{min_frames_to_confirm}",
-                                (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
+                    cv2.putText(frame, f"Tracking Car... {frames_seen}/{min_frames_to_confirm}",
+                                (cx1, cy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                     continue
 
                 # ==========================================
-                # STABILITY THRESHOLD REACHED! PROCESS EXIT
+                # CAR IS STABLE! FIND PLATE INSIDE CAR CROP
                 # ==========================================
-
-                # 1. CROP PLATE & ENHANCE
-                plate_crop = frame[max(0, y1):min(frame_height, y2),
-                                   max(0, x1):min(frame_width, x2)]
+                car_crop_bgr = frame[cy1:cy2, cx1:cx2]
+                if car_crop_bgr.size == 0:
+                    continue
+                
+                # Run plate model ONLY on the isolated car crop
+                plate_results = plate_model(car_crop_bgr, conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False)
+                
+                if plate_results[0].boxes is None or len(plate_results[0].boxes) == 0:
+                    continue  # Car is stable, but plate isn't visible yet.
+                    
+                # Get the highest confidence plate
+                plate_box = plate_results[0].boxes.xyxy[0].cpu().numpy().astype(int)
+                px1, py1, px2, py2 = plate_box
+                
+                # Clamp plate coordinates to car crop boundaries
+                px1, py1 = max(0, px1), max(0, py1)
+                px2, py2 = min(car_crop_bgr.shape[1], px2), min(car_crop_bgr.shape[0], py2)
+                
+                plate_crop = car_crop_bgr[py1:py2, px1:px2]
                 if plate_crop.size == 0:
                     continue
+                    
+                # Draw Plate Box on the main frame (Green) by offsetting car coordinates
+                cv2.rectangle(frame, (cx1 + px1, cy1 + py1), (cx1 + px2, cy1 + py2), (0, 255, 0), 2)
 
                 try:
                     enhanced_plate = process_plate_pipeline(plate_crop)
                 except Exception as e:
-                    print(f"⚠️ [SYSTEM] Skipping plate ID {track_id} due to enhancement failure: {e}")
+                    print(f"⚠️ [SYSTEM] Skipping plate on car ID {track_id} due to enhancement failure: {e}")
                     continue
 
-                # 2. YOLO OCR EXTRACTION
+                # OCR EXTRACTION
                 plate_text = extract_plate_text(ocr_model, enhanced_plate)
 
                 if not plate_text:
                     continue
 
                 processed_track_ids.add(track_id)
-                print(f"\n🚗 [EXIT GATE] Stable Plate Detected: {plate_text} (Track ID: {track_id})")
-
-                # 3. EXPAND BOX FOR CAR CROP
-                w = x2 - x1
-                h = y2 - y1
-
-                car_x1 = max(0, int(x1 - (w * EXPANSION_FACTOR)))
-                car_x2 = min(frame_width, int(x2 + (w * EXPANSION_FACTOR)))
-                car_y1 = max(0, int(y1 - (h * EXPANSION_FACTOR)))
-                car_y2 = min(frame_height, int(y2 + (h * EXPANSION_FACTOR)))
-
-                car_crop_bgr = frame[car_y1:car_y2, car_x1:car_x2]
-
-                cv2.rectangle(frame, (car_x1, car_y1), (car_x2, car_y2), (255, 0, 0), 2)
-                cv2.putText(frame, plate_text, (x1, y1 - 30),
+                print(f"\n🚗 [EXIT GATE] Stable Car & Plate Detected: {plate_text} (Track ID: {track_id})")
+                
+                cv2.putText(frame, plate_text, (cx1, cy1 - 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                # 4. GET QWEN ATTRIBUTES (SYNCHRONOUS)
-                if car_crop_bgr.size > 0:
-                    car_crop_rgb = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2RGB)
-                    pil_image = Image.fromarray(car_crop_rgb)
+                # SEND PERFECT CAR CROP DIRECTLY TO QWEN
+                car_crop_rgb = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(car_crop_rgb)
 
-                    print(f"   [SYSTEM] Running Qwen to identify {plate_text} (synchronous)...")
-                    attributes = get_qwen_attributes(qwen_model, processor, device, pil_image)
+                print(f"   [SYSTEM] Running Qwen to identify {plate_text} (synchronous)...")
+                attributes = get_qwen_attributes(qwen_model, processor, device, pil_image)
 
-                    if attributes:
-                        print(f"   [SYSTEM] Detected: {attributes['color']} - {attributes['model']}")
-                        print(f"   [SYSTEM] Verifying with backend...")
+                if attributes:
+                    print(f"   [SYSTEM] Detected: {attributes['color']} - {attributes['model']}")
+                    print(f"   [SYSTEM] Verifying with backend...")
 
-                        # 5. VERIFY AND EXIT
-                        resp_data = verify_and_exit(plate_text, attributes['color'], attributes['model'], car_crop_bgr)
+                    # 5. VERIFY AND EXIT
+                    resp_data = verify_and_exit(plate_text, attributes['color'], attributes['model'], car_crop_bgr)
 
-                        if resp_data:
-                            allowed = resp_data.get('allowed', False)
-                            if allowed:
-                                if resp_data.get('exit_type') == 'free':
-                                    cv2.putText(frame, f"{plate_text} - FREE EXIT OK", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                                else:
-                                    cv2.putText(frame, f"{plate_text} - EXIT OK", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    if resp_data:
+                        allowed = resp_data.get('allowed', False)
+                        if allowed:
+                            if resp_data.get('exit_type') == 'free':
+                                cv2.putText(frame, f"{plate_text} - FREE EXIT OK", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                             else:
-                                exit_type = resp_data.get('exit_type')
-                                alert_type = resp_data.get('alert_type')
-                                
-                                if exit_type == 'unpaid':
-                                    cv2.putText(frame, f"{plate_text} - PLEASE PAY FIRST", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                elif exit_type == 'grace_expired':
-                                    cv2.putText(frame, f"{plate_text} - GRACE EXPIRED", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                elif alert_type in ['color_mismatch', 'model_mismatch']:
-                                    cv2.putText(frame, f"{plate_text} - VEHICLE MISMATCH", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                elif alert_type == 'plate_not_found':
-                                    cv2.putText(frame, f"{plate_text} - PLATE NOT FOUND", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                else:
-                                    cv2.putText(frame, f"{plate_text} - EXIT DENIED", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                    else:
-                        print(f"   [SYSTEM] Qwen failed — cannot verify exit for {plate_text}")
-                        cv2.putText(frame, "VERIFY FAILED", (car_x1, car_y1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                                cv2.putText(frame, f"{plate_text} - EXIT OK", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                        else:
+                            exit_type = resp_data.get('exit_type')
+                            alert_type = resp_data.get('alert_type')
+                            
+                            if exit_type == 'unpaid':
+                                cv2.putText(frame, f"{plate_text} - PLEASE PAY FIRST", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                            elif exit_type == 'grace_expired':
+                                cv2.putText(frame, f"{plate_text} - GRACE EXPIRED", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                            elif alert_type in ['color_mismatch', 'model_mismatch']:
+                                cv2.putText(frame, f"{plate_text} - VEHICLE MISMATCH", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                            elif alert_type == 'plate_not_found':
+                                cv2.putText(frame, f"{plate_text} - PLATE NOT FOUND", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                            else:
+                                cv2.putText(frame, f"{plate_text} - EXIT DENIED", (cx1, cy1 - 10),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                else:
+                    print(f"   [SYSTEM] Qwen failed — cannot verify exit for {plate_text}")
+                    cv2.putText(frame, "VERIFY FAILED", (cx1, cy1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
 
         if out:
             out.write(frame)

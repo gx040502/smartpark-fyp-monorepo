@@ -24,6 +24,7 @@ from huggingface_hub import login
 # 1. CONFIGURATION
 # ==============================================================================================================
 # Model Paths
+CAR_MODEL_PATH = r"G:\My Drive\FYP\CAR MODEL\outputs\car_mixed\yolo11_run_01\weights\best.pt"
 PLATE_MODEL_PATH = r"G:\My Drive\FYP\LICENSE PLATE\outputs\License-Plate-Recognition-11\yolo11_run_02\weights\best.pt"
 OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo11_run_01\weights\best.pt"
 INPUT_VIDEO = r"C:\Users\Tan Gyap Xun\Desktop\DEGREE\UTAR video\UTAR 3 CAR\UTAR 3 CAR-1.mp4"
@@ -35,7 +36,7 @@ LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1:8000")
 QWEN_MODEL_ID = 'Qwen/Qwen3-VL-2B-Instruct'
 
 # Application Settings
-EXPANSION_FACTOR = 6.0
+CAR_CONFIDENCE_THRESHOLD = 0.5
 PLATE_CONFIDENCE_THRESHOLD = 0.3
 OCR_CONFIDENCE_THRESHOLD = 0.7
 SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
@@ -44,10 +45,6 @@ SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
 # 2. IMAGE PROCESSING PIPELINE (ISOLATE, DESKEW, ENHANCE)
 # ==============================================================================================================
 def isolate_and_get_corners(plate_crop):
-    """
-    Finds the plate's outline silently, returns a tight crop (color) containing just
-    the plate, AND the left/right corner points of its true rectangle.
-    """
     gray = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2GRAY)
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
@@ -83,7 +80,6 @@ def isolate_and_get_corners(plate_crop):
     return cropped, (left_x, left_y, right_x, right_y)
 
 def deskew_by_corners(ROI, left_x, left_y, right_x, right_y):
-    """Rotates ROI level using two known edge points via simple trigonometry."""
     opp = right_y - left_y
     hyp = ((left_x - right_x)**2 + (left_y - right_y)**2)**0.5
 
@@ -114,22 +110,17 @@ def deskew_by_corners(ROI, left_x, left_y, right_x, right_y):
     return result
 
 def process_plate_pipeline(plate_crop):
-    """Runs the cropped plate through isolation, deskew, and color enhancement."""
-    # 1. Isolate the plate itself
     plate_crop, corners = isolate_and_get_corners(plate_crop)
 
-    # 2. Deskew
     if corners is not None:
         plate_crop = deskew_by_corners(plate_crop, *corners)
 
-    # 3. Color Inversion for Black Plates
     gray_for_check = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2GRAY)
     _, binary_for_check = cv2.threshold(gray_for_check, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
     if np.mean(binary_for_check) < 127:
         plate_crop = cv2.bitwise_not(plate_crop)
 
-    # 4. Enhancement (Upscale -> CLAHE -> Unsharp Mask -> Gamma -> Tint Removal)
     height, width = plate_crop.shape[:2]
     plate_crop = cv2.resize(plate_crop, (int(width * 1.5), int(height * 1.5)), interpolation=cv2.INTER_CUBIC)
 
@@ -157,10 +148,6 @@ def process_plate_pipeline(plate_crop):
 # 3. BACKGROUND WORKER FOR QWEN
 # ==============================================================================================================
 def parse_car_attributes(text):
-    """
-    Parse Qwen's response in '[Color] - [Brand]' format.
-    Returns a dict: {'color': '...', 'model': '...'}
-    """
     cleaned = text.strip().replace("\n", " ")
     
     if ' - ' in cleaned:
@@ -174,7 +161,6 @@ def parse_car_attributes(text):
     return {'color': color, 'model': model}
 
 def save_car_details(plate_number, color, model):
-    """Send car entry details to the Laravel backend via HTTP POST."""
     payload = {
         'license_plate': plate_number,
         'color': color,
@@ -195,7 +181,6 @@ def save_car_details(plate_number, color, model):
         print(f"\n❌ [DATABASE ERROR] Failed to save {plate_number}: {e}")
 
 def fetch_qwen_attributes(qwen_model, processor, device, pil_image, plate_number):
-    """This function runs in the background. It calls Qwen locally and then simulates a DB save."""
     question = (
         "Look at the car in this image. Identify its primary color and its brand/make "
         "(e.g., Mercedes, Proton, Perodua, Honda, Toyota). "
@@ -248,7 +233,6 @@ def fetch_qwen_attributes(qwen_model, processor, device, pil_image, plate_number
 # 4. OCR EXTRACTION & SORTING
 # ==============================================================================================================
 def extract_plate_text(ocr_model, plate_crop_bgr):
-    """Runs OCR on the cropped plate and sorts characters from left to right."""
     results = ocr_model.predict(plate_crop_bgr, conf=OCR_CONFIDENCE_THRESHOLD, verbose=False)
     
     detected_chars = []
@@ -267,6 +251,7 @@ def extract_plate_text(ocr_model, plate_crop_bgr):
 # ==============================================================================================================
 def load_all_models():
     print("--- LOADING MODELS (This may take a minute) ---")
+    car_model = YOLO(CAR_MODEL_PATH)
     plate_model = YOLO(PLATE_MODEL_PATH)
     ocr_model = YOLO(OCR_MODEL_PATH)
     
@@ -290,10 +275,10 @@ def load_all_models():
         )
         
     processor = AutoProcessor.from_pretrained(QWEN_MODEL_ID, trust_remote_code=True)
-    return plate_model, ocr_model, qwen_model, processor, device
+    return car_model, plate_model, ocr_model, qwen_model, processor, device
 
 def process_video():
-    plate_model, ocr_model, qwen_model, processor, device = load_all_models()
+    car_model, plate_model, ocr_model, qwen_model, processor, device = load_all_models()
     
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     
@@ -311,7 +296,7 @@ def process_video():
     if fps <= 0: fps = 30 
     
     min_frames_to_confirm = int(fps * SECONDS_TO_CONFIRM)
-    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames (2 seconds) to confirm plates.")
+    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames to confirm cars.")
     
     out = None
     if SAVE_VIDEO:
@@ -326,74 +311,84 @@ def process_video():
         ret, frame = cap.read() 
         if not ret: break 
 
-        results = plate_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False)
+        # 🚀 TRACK CARS INSTEAD OF PLATES
+        results = car_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=CAR_CONFIDENCE_THRESHOLD, verbose=False)
         
         if results[0].boxes is not None and results[0].boxes.id is not None:
             boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
             track_ids = results[0].boxes.id.cpu().numpy().astype(int)
 
             for box, track_id in zip(boxes, track_ids):
-                x1, y1, x2, y2 = box
+                cx1, cy1, cx2, cy2 = box
                 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                # Clamp car coordinates to frame boundaries
+                cx1, cy1 = max(0, cx1), max(0, cy1)
+                cx2, cy2 = min(frame_width, cx2), min(frame_height, cy2)
+                
+                # Draw Car Box (Blue)
+                cv2.rectangle(frame, (cx1, cy1), (cx2, cy2), (255, 0, 0), 2)
                 
                 track_history[track_id] = track_history.get(track_id, 0) + 1 
                 frames_seen = track_history[track_id]
                 
                 if track_id in processed_track_ids:
-                    cv2.putText(frame, "Processed", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(frame, "Processed", (cx1, cy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     continue
                 
                 if frames_seen < min_frames_to_confirm:
-                    cv2.putText(frame, f"Tracking... {frames_seen}/{min_frames_to_confirm}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
+                    cv2.putText(frame, f"Tracking Car... {frames_seen}/{min_frames_to_confirm}", (cx1, cy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                     continue
                 
                 # ==========================================
-                # STABILITY THRESHOLD REACHED! NEW CAR CONFIRMED!
+                # CAR IS STABLE! FIND PLATE INSIDE CAR CROP
                 # ==========================================
+                car_crop_bgr = frame[cy1:cy2, cx1:cx2]
+                if car_crop_bgr.size == 0: continue
                 
-                # 1. CROP PLATE & PROCESS THROUGH ENHANCEMENT PIPELINE
-                plate_crop = frame[max(0, y1):min(frame_height, y2), max(0, x1):min(frame_width, x2)]
+                # Run plate model ONLY on the isolated car crop
+                plate_results = plate_model(car_crop_bgr, conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False)
+                
+                if plate_results[0].boxes is None or len(plate_results[0].boxes) == 0:
+                    continue # Car is stable, but plate isn't visible yet. Wait for next frame.
+                
+                # Get the highest confidence plate
+                plate_box = plate_results[0].boxes.xyxy[0].cpu().numpy().astype(int)
+                px1, py1, px2, py2 = plate_box
+                
+                # Clamp plate coordinates to car crop boundaries
+                px1, py1 = max(0, px1), max(0, py1)
+                px2, py2 = min(car_crop_bgr.shape[1], px2), min(car_crop_bgr.shape[0], py2)
+                
+                plate_crop = car_crop_bgr[py1:py2, px1:px2]
                 if plate_crop.size == 0: continue
                 
+                # Draw Plate Box on the main frame (Green) by offsetting car coordinates
+                cv2.rectangle(frame, (cx1 + px1, cy1 + py1), (cx1 + px2, cy1 + py2), (0, 255, 0), 2)
+
                 try:
-                    # Pass the raw crop through isolation, deskew, and enhancement before OCR
                     enhanced_plate = process_plate_pipeline(plate_crop)
                 except Exception as e:
-                    print(f"⚠️ [SYSTEM] Skipping plate ID {track_id} due to enhancement failure: {e}")
+                    print(f"⚠️ [SYSTEM] Skipping plate on car ID {track_id} due to enhancement failure: {e}")
                     continue
                 
-                # 2. OCR EXTRACTION
+                # OCR EXTRACTION
                 plate_text = extract_plate_text(ocr_model, enhanced_plate)
-                
                 if not plate_text: continue
                 
+                # Mark entire car sequence as processed
                 processed_track_ids.add(track_id)
                 
-                print(f"\n🚗 [SYSTEM] Stable Plate Detected: {plate_text} (Track ID: {track_id})")
+                print(f"\n🚗 [SYSTEM] Stable Car & Plate Detected: {plate_text} (Track ID: {track_id})")
                 print(f"   [SYSTEM] Barrier Opened! Letting car enter immediately...")
 
-                # 3. EXPAND BOX FOR CAR CROP
-                w = x2 - x1
-                h = y2 - y1
-                
-                car_x1 = max(0, int(x1 - (w * EXPANSION_FACTOR)))
-                car_x2 = min(frame_width, int(x2 + (w * EXPANSION_FACTOR)))
-                car_y1 = max(0, int(y1 - (h * EXPANSION_FACTOR)))
-                car_y2 = min(frame_height, int(y2 + (h * EXPANSION_FACTOR)))
-                
-                car_crop_bgr = frame[car_y1:car_y2, car_x1:car_x2]
-                
-                cv2.rectangle(frame, (car_x1, car_y1), (car_x2, car_y2), (255, 0, 0), 2)
-                cv2.putText(frame, plate_text, (x1, y1 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                cv2.putText(frame, plate_text, (cx1, cy1 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                # 4. SEND TO QWEN (BACKGROUND THREAD)
-                if car_crop_bgr.size > 0:
-                    car_crop_rgb = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2RGB)
-                    pil_image = Image.fromarray(car_crop_rgb)
-                    
-                    print(f"   [SYSTEM] Sending {plate_text} crop to LOCAL Qwen in background...")
-                    executor.submit(fetch_qwen_attributes, qwen_model, processor, device, pil_image, plate_text)
+                # SEND PERFECT CAR CROP DIRECTLY TO QWEN (No expansion needed)
+                car_crop_rgb = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(car_crop_rgb)
+                
+                print(f"   [SYSTEM] Sending {plate_text} car crop to LOCAL Qwen in background...")
+                executor.submit(fetch_qwen_attributes, qwen_model, processor, device, pil_image, plate_text)
 
         if out: out.write(frame)
         cv2.imshow("SmartPark LPR", frame)

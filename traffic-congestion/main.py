@@ -19,6 +19,7 @@ import time
 import threading
 import os
 from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
@@ -30,7 +31,7 @@ import requests as http_requests
 # ==============================================================================================================
 
 # YOLO model for vehicle detection
-YOLO_MODEL_PATH = r"G:\My Drive\FYP\CAR MODEL\outputs\car-1\yolo11_run_01\weights\best.pt"
+YOLO_MODEL_PATH = r"G:\My Drive\FYP\CAR MODEL\outputs\car_row\yolo11_run_01\weights\best.pt"
 
 # Directory to save uploaded videos
 UPLOAD_DIR = "uploads"
@@ -79,6 +80,7 @@ input_video_path: str | None = None   # Set dynamically when user uploads a vide
 video_thread: threading.Thread | None = None
 stop_event = threading.Event()
 global_is_congested: bool = False
+latest_frame: np.ndarray | None = None   # Latest processed frame for MJPEG streaming
 last_congestion_webhook_time: float = 0  # Timestamp of last webhook call (for cooldown)
 
 # ==============================================================================================================
@@ -195,6 +197,29 @@ async def get_congestion():
     """Returns the real-time congestion status."""
     return {"is_congested": global_is_congested}
 
+def generate_mjpeg():
+    """Yields JPEG frames as a multipart stream for the browser."""
+    while True:
+        if latest_frame is None:
+            time.sleep(0.05)
+            continue
+        ret, buffer = cv2.imencode('.jpg', latest_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ret:
+            continue
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
+        )
+        time.sleep(0.03)  # ~30 FPS cap to avoid overwhelming the browser
+
+@app.get("/video_feed")
+async def video_feed():
+    """Streams the processed video as MJPEG to the browser."""
+    return StreamingResponse(
+        generate_mjpeg(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
 
 # ==============================================================================================================
 # 4. VIDEO PROCESSING LOOP
@@ -215,7 +240,7 @@ def process_video():
       8. Flag congestion if both thresholds are exceeded
       9. Draw visual overlays and display
     """
-    global roi_polygon_px, input_video_path, global_is_congested, last_congestion_webhook_time
+    global roi_polygon_px, input_video_path, global_is_congested, last_congestion_webhook_time, latest_frame
 
     print("--- LOADING YOLO MODEL ---")
     model = YOLO(YOLO_MODEL_PATH)
@@ -243,13 +268,14 @@ def process_video():
     # DWELL TIME TRACKING DICTIONARY
     # ============================================================
     # Key: track_id (int)
-    # Value: entry_timestamp (float, from time.time())
+    # Value: entry_frame_idx (int)
     #
     # When a vehicle's centroid enters the ROI for the first time,
-    # we record the current timestamp. As long as the vehicle stays
-    # inside, we calculate dwell_time = current_time - entry_time.
+    # we record the current frame index. As long as the vehicle stays
+    # inside, we calculate dwell_time = (current_frame - entry_frame) / fps.
     # When the vehicle leaves the ROI (centroid outside), we remove it.
-    vehicle_entry_times: dict[int, float] = {}
+    vehicle_entry_frames: dict[int, int] = {}
+    current_frame_idx = 0
 
     # Frame counter: tracks how many frames each object has been visible
     track_frame_count: dict[int, int] = {}
@@ -263,15 +289,17 @@ def process_video():
         if not ret:
             # Loop video for continuous demo
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            current_frame_idx = 0  # Reset frame counter on loop
             continue
+            
+        current_frame_idx += 1
 
-        # If ROI hasn't been set yet, just show the raw frame
+        # If ROI hasn't been set yet, just update the latest frame with a waiting message
         if roi_polygon_px is None:
             cv2.putText(frame, "Waiting for ROI from frontend...", (30, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 165, 255), 2)
-            cv2.imshow("Traffic Congestion Monitor", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            latest_frame = frame.copy()
+            time.sleep(1 / fps)
             continue
 
         # ============================================================
@@ -286,9 +314,10 @@ def process_video():
             conf=CONFIDENCE_THRESHOLD,
             iou=IOU_THRESHOLD,
             verbose=False,
+            device=0,
         )
 
-        # Current time for dwell calculations
+        # (Real-world time is only used for the webhook cooldown now)
         current_time = time.time()
 
         # Set of track IDs visible in THIS frame (to detect vehicles that left)
@@ -342,12 +371,12 @@ def process_video():
                         counted_ids.add(track_id)
                         total_vehicles_counted += 1
 
-                    # Record entry time if this is the first time we see this vehicle inside
-                    if track_id not in vehicle_entry_times:
-                        vehicle_entry_times[track_id] = current_time
+                    # Record entry frame if this is the first time we see this vehicle inside
+                    if track_id not in vehicle_entry_frames:
+                        vehicle_entry_frames[track_id] = current_frame_idx
 
-                    # Calculate individual dwell time
-                    dwell_time = current_time - vehicle_entry_times[track_id]
+                    # Calculate individual dwell time based on video frames, NOT real-world clock
+                    dwell_time = (current_frame_idx - vehicle_entry_frames[track_id]) / fps
                     vehicles_in_roi += 1
                     total_dwell_in_roi += dwell_time
 
@@ -367,8 +396,8 @@ def process_video():
                                 (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 165, 0), 2)
                 else:
                     # Vehicle is outside ROI - remove from dwell tracking if it was inside before
-                    if track_id in vehicle_entry_times:
-                        del vehicle_entry_times[track_id]
+                    if track_id in vehicle_entry_frames:
+                        del vehicle_entry_frames[track_id]
 
                     # --- DRAW: Vehicle outside ROI (GREEN box + ORANGE frame counter) ---
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
@@ -378,9 +407,9 @@ def process_video():
                                 (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 2)
 
         # Clean up vehicles that have completely disappeared from the frame
-        disappeared_ids = set(vehicle_entry_times.keys()) - current_frame_ids
+        disappeared_ids = set(vehicle_entry_frames.keys()) - current_frame_ids
         for gone_id in disappeared_ids:
-            del vehicle_entry_times[gone_id]
+            del vehicle_entry_frames[gone_id]
 
         # ============================================================
         # STEP 5: Calculate congestion metrics
@@ -481,13 +510,11 @@ def process_video():
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
         # ============================================================
-        # STEP 8: Display the frame
+        # STEP 8: Publish the frame to the MJPEG stream
         # ============================================================
-        cv2.imshow("Traffic Congestion Monitor", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        latest_frame = frame.copy()
+        time.sleep(1 / fps)  # Pace the loop to match the video's native FPS
 
     # Cleanup
     cap.release()
-    cv2.destroyAllWindows()
     print("Video processing stopped.")

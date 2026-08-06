@@ -191,6 +191,13 @@ export default function LiveCameraSimulation() {
                 <Upload className="h-8 w-8 mb-2 opacity-50" />
                 <p>Upload a video file to simulate camera feed</p>
               </div>
+            ) : saveStatus === 'success' ? (
+              /* After ROI is saved: show the MJPEG stream from Python (bounding boxes, ROI, HUD baked in) */
+              <img
+                src={`${TRAFFIC_API_URL}/video_feed`}
+                className="w-full h-full object-cover"
+                alt="Processed video feed with YOLO detections"
+              />
             ) : (
               <>
                 <video src={videoSrc} className="w-full h-full object-cover" autoPlay loop muted />

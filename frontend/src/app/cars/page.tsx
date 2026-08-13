@@ -1,4 +1,4 @@
-import { getCars } from '@/app/actions/cars';
+import { getCars, getCarFilterOptions } from '@/app/actions/cars';
 import CarList from '@/components/cars/car-list';
 import { AppSidebarWrapper } from '@/components/sidebar/app-sidebar-wrapper';
 import { Header } from '@/components/sidebar/header';
@@ -15,21 +15,31 @@ export default async function Page({
 }) {
   const resolvedParams = await searchParams;
   
-  // Cleanly await server data before the page mounts!
-  const carPayload = await getCars({
-    page: resolvedParams.page,
-    search: resolvedParams.search,
-    color: resolvedParams.color,
-    status: resolvedParams.status
-  });
+  // Fetch car data and filter options in parallel
+  const [carPayload, filterOptions] = await Promise.all([
+    getCars({
+      page: resolvedParams.page,
+      search: resolvedParams.search,
+      color: resolvedParams.color,
+      model: resolvedParams.model,
+      status: resolvedParams.status,
+      date_from: resolvedParams.date_from,
+      date_to: resolvedParams.date_to,
+      date_field: resolvedParams.date_field,
+    }),
+    getCarFilterOptions(),
+  ]);
 
   return (
     <SidebarProvider>
       <AppSidebarWrapper />
       <SidebarInset className="flex flex-col min-h-screen">
         <Header title="Cars Directory" />
-        {/* Pass strictly queried data sequentially below */}
-        <CarList initialData={carPayload} searchParams={resolvedParams} />
+        <CarList
+          initialData={carPayload}
+          searchParams={resolvedParams}
+          filterOptions={filterOptions}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

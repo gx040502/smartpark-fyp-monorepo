@@ -44,8 +44,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/metrics', [DashboardController::class, 'metrics']);
     Route::get('/dashboard/peak-hours', [DashboardController::class, 'peakHours']);
     Route::get('/dashboard/revenue-trends', [DashboardController::class, 'revenueTrends']);
+    Route::get('/dashboard/demographics', [DashboardController::class, 'demographics']);
+    Route::get('/dashboard/payment-insights', [DashboardController::class, 'paymentInsights']);
 
     // Parking Sessions
+    Route::get('/parking-sessions/filter-options', [ParkingSessionController::class, 'filterOptions']);
     Route::get('/parking-sessions', [ParkingSessionController::class, 'index']);
     Route::get('/parking-sessions/{id}', [ParkingSessionController::class, 'show']);
 

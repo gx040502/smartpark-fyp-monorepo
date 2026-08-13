@@ -34,12 +34,22 @@ class ExitAlertController extends Controller
         return response()->json(['message' => 'Alert dismissed successfully.']);
     }
     
-    public function override($id)
+    public function override(Request $request, $id)
     {
         $alert = ExitAlert::findOrFail($id);
         
-        // Complete the parking session if one exists
-        if ($alert->session_id) {
+        // If a specific session_id is provided, match the alert to it
+        if ($request->has('session_id')) {
+            $session = \App\Models\ParkingSession::findOrFail($request->session_id);
+            $session->update([
+                'status'    => ParkingStatus::COMPLETED->value,
+                'exit_time' => now(),
+            ]);
+            // Link the alert to this session so we know how it was resolved
+            $alert->session_id = $session->id;
+        } 
+        // Otherwise use the alert's existing session_id if present
+        else if ($alert->session_id) {
             $alert->parkingSession()->update([
                 'status'    => ParkingStatus::COMPLETED->value,
                 'exit_time' => now(),

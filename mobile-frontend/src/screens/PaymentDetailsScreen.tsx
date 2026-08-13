@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -54,6 +54,17 @@ export default function PaymentDetailsScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView className="flex-1 px-6 pt-6">
+        {/* Car Image */}
+        {sessionData.car_image_url && (
+          <View className="w-full h-48 rounded-xl overflow-hidden mb-6 shadow-sm border border-gray-200 bg-gray-50">
+            <Image 
+              source={{ uri: sessionData.car_image_url }} 
+              className="w-full h-full"
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
         {/* Info Card */}
         <View className="bg-[#f9f9f9] rounded-xl p-5 mb-8 shadow-sm">
           <View className="flex-row justify-between mb-4 pb-4 border-b border-gray-200">

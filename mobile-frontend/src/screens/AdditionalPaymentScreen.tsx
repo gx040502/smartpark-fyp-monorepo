@@ -23,7 +23,7 @@ export default function AdditionalPaymentScreen({ navigation, route }: Props) {
     { id: 'Touch n Go', label: "Touch 'n Go", icon: Wallet },
   ];
 
-  const overdueMinutes = sessionData.overdue_minutes || 0;
+  const overdueMinutes = Math.round(Number(sessionData.overdue_minutes || 0));
   const extraCharge = parseFloat(sessionData.extra_charge || '0');
   const originalFee = parseFloat(sessionData.original_fee || sessionData.amount_due || '0');
   const totalPaid = parseFloat(sessionData.total_paid || '0');

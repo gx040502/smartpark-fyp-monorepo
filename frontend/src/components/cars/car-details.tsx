@@ -69,33 +69,41 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="grid grid-cols-2 gap-4 pt-6">
-            <div className="space-y-1">
-              <CardTitle> Model</CardTitle>
-              <CardDescription>{session.model}</CardDescription>
-            </div>
+          <CardContent className="pt-6 flex flex-col gap-6">
+            {session.car_image_url && (
+              <div className="w-full rounded-md overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={session.car_image_url} alt="Car Entry Image" className="w-full h-auto hover:scale-105 transition-transform duration-500" />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <CardTitle> Model</CardTitle>
+                <CardDescription>{session.model}</CardDescription>
+              </div>
 
-            <div className="space-y-1">
-              <CardTitle>Color Variant</CardTitle>
-              <CardDescription>{session.color}</CardDescription>
-            </div>
+              <div className="space-y-1">
+                <CardTitle>Color Variant</CardTitle>
+                <CardDescription>{session.color}</CardDescription>
+              </div>
 
-            <div className="space-y-1 mt-4">
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-3.5 w-3.5" />
-                Entry Time
-              </CardTitle>
-              <CardDescription>{new Date(session.entry_time).toLocaleString()}</CardDescription>
-            </div>
+              <div className="space-y-1 mt-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />
+                  Entry Time
+                </CardTitle>
+                <CardDescription>{new Date(session.entry_time).toLocaleString()}</CardDescription>
+              </div>
 
-            <div className="space-y-1 mt-4">
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5" />
-                Exit Time
-              </CardTitle>
-              <CardDescription>
-                {session.exit_time ? new Date(session.exit_time).toLocaleString() : <span className="text-blue-600">Still inside facility</span>}
-              </CardDescription>
+              <div className="space-y-1 mt-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5" />
+                  Exit Time
+                </CardTitle>
+                <CardDescription>
+                  {session.exit_time ? new Date(session.exit_time).toLocaleString() : <span className="text-blue-600">Still inside facility</span>}
+                </CardDescription>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -167,7 +175,9 @@ export default function CarDetails({ initialSession, id }: { initialSession: any
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-[250px]">
                     {session.status === 'ENTER'
-                      ? `Current running fee: RM ${parseFloat(session.amount_due || 0).toFixed(2)}`
+                      ? (parseFloat(session.amount_due || 0) === 0 
+                          ? 'Current running fee: FREE' 
+                          : `Current running fee: RM ${parseFloat(session.amount_due || 0).toFixed(2)}`)
                       : 'This session has not processed a payment receipt yet.'}
                   </p>
                 </div>

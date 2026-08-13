@@ -24,25 +24,30 @@ class DatabaseSeeder extends Seeder
 
         $this->command->info('✓ Admin user created: admin@smartpark.com / password');
 
-        // ─── 2. Parking Sessions (50 records) ────────────────────────
-        $sessions = ParkingSession::factory()->count(50)->create();
+        // Check if user wants mock data
+        if ($this->command->confirm('Do you want to seed mock parking data?', true)) {
+            // ─── 2. Parking Sessions (50 records) ────────────────────────
+            $sessions = ParkingSession::factory()->count(50)->create();
 
-        $this->command->info('✓ Created 50 parking sessions');
+            $this->command->info('✓ Created 50 parking sessions');
 
-        // ─── 3. Payment Receipts for PAID and COMPLETED sessions ─────
-        $receiptCount = 0;
+            // ─── 3. Payment Receipts for PAID and COMPLETED sessions ─────
+            $receiptCount = 0;
 
-        $sessions->each(function (ParkingSession $session) use (&$receiptCount) {
-            if (in_array($session->status, [ParkingStatus::PAID, ParkingStatus::COMPLETED])) {
-                PaymentReceipt::factory()
-                    ->forSession($session)
-                    ->create();
+            $sessions->each(function (ParkingSession $session) use (&$receiptCount) {
+                if (in_array($session->status, [ParkingStatus::PAID, ParkingStatus::COMPLETED])) {
+                    PaymentReceipt::factory()
+                        ->forSession($session)
+                        ->create();
 
-                $receiptCount++;
-            }
-        });
+                    $receiptCount++;
+                }
+            });
 
-        $this->command->info("✓ Created {$receiptCount} payment receipts");
+            $this->command->info("✓ Created {$receiptCount} payment receipts");
+        } else {
+            $this->command->info('✓ Skipped mock parking data.');
+        }
 
         // ─── Summary ─────────────────────────────────────────────────
         $this->command->newLine();

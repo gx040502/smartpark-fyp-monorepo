@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Car, LayoutDashboard, MessageSquare, UserCircle, LogOut } from "lucide-react"
+import { Car, LayoutDashboard, MessageSquare, UserCircle, LogOut, ShieldAlert } from "lucide-react"
 
 import {
   Sidebar,
@@ -16,16 +16,38 @@ import {
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { apiFetch } from "@/lib/api"
 
 export function AppSidebarWrapper({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
-
   const router = useRouter()
+
+  const [alertCount, setAlertCount] = React.useState<number>(0)
+
+  React.useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const response = await apiFetch('/exit-alerts')
+        if (response.ok) {
+          const data = await response.json()
+          setAlertCount(Array.isArray(data) ? data.length : 0)
+        }
+      } catch (err) {
+        // Silently fail — sidebar should not break if alerts API is down
+      }
+    }
+
+    fetchCount()
+    const interval = setInterval(fetchCount, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Cars Directory', href: '/cars', icon: Car },
+    { name: 'Exit Alerts', href: '/exit-alerts', icon: ShieldAlert },
     { name: 'AI Agent', href: '/ai-agent', icon: MessageSquare },
     { name: 'Profile', href: '/profile', icon: UserCircle },
   ]
@@ -49,13 +71,26 @@ export function AppSidebarWrapper({ ...props }: React.ComponentProps<typeof Side
             const isActive = pathname.startsWith(item.href)
             return (
               <SidebarMenuItem key={item.name}>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   isActive={isActive}
-                  className={`h-11 rounded-lg px-4 ${isActive ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+                  className={`h-11 rounded-lg px-4 flex items-center justify-between ${isActive ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
                   onClick={() => router.push(item.href)}
                 >
-                    <item.icon className={`h-5 w-5 ${isActive ? 'text-indigo-600' : 'text-gray-500'}`} />
-                    <span className="ml-2">{item.name}</span>
+                  <div className="flex items-center min-w-0">
+                    <item.icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-500'}`} />
+                    <span className="ml-2 truncate">{item.name}</span>
+                  </div>
+                  {item.name === 'Exit Alerts' && (
+                    <Badge
+                      className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                        alertCount > 0
+                          ? 'bg-red-600 text-white animate-pulse hover:bg-red-700'
+                          : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+                      }`}
+                    >
+                      {alertCount}
+                    </Badge>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )
@@ -73,10 +108,10 @@ export function AppSidebarWrapper({ ...props }: React.ComponentProps<typeof Side
             <span className="text-xs text-muted-foreground truncate">admin@smartpark.com</span>
           </div>
         </div>
-        
+
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               onClick={handleLogout}
               className="h-10 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
             >
@@ -89,3 +124,4 @@ export function AppSidebarWrapper({ ...props }: React.ComponentProps<typeof Side
     </Sidebar>
   )
 }
+

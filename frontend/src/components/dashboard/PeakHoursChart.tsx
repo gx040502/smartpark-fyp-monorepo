@@ -49,7 +49,7 @@ export default function PeakHoursChart({ initialData }: { initialData: any[] }) 
     chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false } },
     stroke: { curve: 'smooth', width: 3 },
     colors: ['#3b82f6', '#ef4444'], // Blue for entries, Red for exits
-    xaxis: { categories: data.map(d => d.hour) },
+    xaxis: { categories: data.map(d => d.label) },
     legend: { position: 'top' },
     tooltip: { shared: true, intersect: false }
   };
@@ -62,7 +62,7 @@ export default function PeakHoursChart({ initialData }: { initialData: any[] }) 
   return (
     <Card className="col-span-1 md:col-span-2">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl font-bold">Peak Hours Analysis</CardTitle>
+        <CardTitle className="text-xl font-bold">Volume Trend Analysis</CardTitle>
         <div className="flex space-x-2 items-center">
           <Select value={filter} onValueChange={(val) => setFilter(val || 'today')}>
             <SelectTrigger className="w-[130px]">

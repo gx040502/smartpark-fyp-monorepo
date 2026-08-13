@@ -23,14 +23,21 @@ class ParkingSessionController extends Controller
             'license_plate' => 'required|string',
             'color'         => 'required|string',
             'model'         => 'required|string',
+            'image'         => 'nullable|image|max:2048', // optional image upload
         ]);
 
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('sessions', 'public');
+        }
+
         $session = ParkingSession::create([
-            'license_plate' => $request->license_plate,
-            'color'         => $request->color,
-            'model'         => $request->model,
-            'entry_time'    => now(),
-            'status'        => ParkingStatus::ENTER->value,
+            'license_plate'  => $request->license_plate,
+            'color'          => $request->color,
+            'model'          => $request->model,
+            'entry_time'     => now(),
+            'status'         => ParkingStatus::ENTER->value,
+            'car_image_path' => $imagePath,
         ]);
 
         return response()->json($session, 201);
@@ -59,6 +66,18 @@ class ParkingSessionController extends Controller
         if ($request->filled('model')) {
             $query->where('model', $request->query('model'));
         }
+
+        // Date range filtering — supports both entry_time and exit_time
+        $dateField = $request->query('date_field', 'entry_time');
+        if (!in_array($dateField, ['entry_time', 'exit_time'])) {
+            $dateField = 'entry_time';
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate($dateField, '>=', $request->query('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate($dateField, '<=', $request->query('date_to'));
+        }
         
         // Default sorting
         $sortField = $request->query('sort_by', 'entry_time');
@@ -69,14 +88,45 @@ class ParkingSessionController extends Controller
         $sessions = $query->paginate($request->query('per_page', 15));
 
         // Recalculate amount_due on-the-fly for active ENTER sessions
+        // and compute a human-readable duration for all sessions
         $sessions->getCollection()->transform(function ($session) {
             if ($session->status === ParkingStatus::ENTER) {
                 $session->amount_due = $session->calculateParkingFee();
             }
+
+            // Compute duration: use exit_time for completed, now() for active
+            $endTime = $session->exit_time ?? now();
+            $diffMinutes = $session->entry_time->diffInMinutes($endTime);
+            $hours = intdiv($diffMinutes, 60);
+            $minutes = $diffMinutes % 60;
+            $session->duration = "{$hours}h {$minutes}m";
+
             return $session;
         });
 
         return response()->json($sessions);
+    }
+
+    /**
+     * Return distinct color and model values from parking sessions
+     * for populating frontend filter dropdowns dynamically.
+     */
+    public function filterOptions()
+    {
+        $colors = ParkingSession::select('color')
+            ->distinct()
+            ->orderBy('color')
+            ->pluck('color');
+
+        $models = ParkingSession::select('model')
+            ->distinct()
+            ->orderBy('model')
+            ->pluck('model');
+
+        return response()->json([
+            'colors' => $colors,
+            'models' => $models,
+        ]);
     }
 
     /**
@@ -282,54 +332,19 @@ class ParkingSessionController extends Controller
             ], 404);
         }
 
-        // Always check attributes first (Scenarios 1, 3, 5)
-        $colorMismatch = strtolower($request->color) !== strtolower($session->color);
-        $modelMismatch = strtolower($request->model) !== strtolower($session->model);
+        // --- 1. PAYMENT & TIME LOGIC FIRST ---
+        $isPaymentOk = false;
+        $exitType = '';
+        $successMessage = '';
 
-        if ($colorMismatch || $modelMismatch) {
-            // Scenario 5: Attribute mismatch
-            $alertType = $colorMismatch ? 'color_mismatch' : 'model_mismatch';
-            
-            ExitAlert::create([
-                'alert_type'     => $alertType,
-                'license_plate'  => $request->license_plate,
-                'detected_color' => $request->color,
-                'detected_model' => $request->model,
-                'expected_color' => $session->color,
-                'expected_model' => $session->model,
-                'image_path'     => $imagePath,
-                'session_id'     => $session->id,
-            ]);
-
-            Log::warning("EXIT VERIFICATION FAILED: {$alertType}", [
-                'license_plate' => $request->license_plate,
-                'session_id'    => $session->id,
-            ]);
-
-            return response()->json([
-                'allowed'       => false,
-                'message'       => 'Vehicle attribute mismatch. Admin has been notified.',
-                'alert_type'    => $alertType,
-            ], 403);
-        }
-
-        // Attributes match. Now check payment/time logic
         if ($session->status === ParkingStatus::ENTER) {
             $freeMinutes = config('parking.free_exit_minutes', 15);
             
-            if (now()->diffInMinutes($session->entry_time) <= $freeMinutes) {
-                // Scenario 1: Free exit
-                $session->update([
-                    'status'    => ParkingStatus::COMPLETED->value,
-                    'exit_time' => now(),
-                ]);
-
-                return response()->json([
-                    'allowed'   => true,
-                    'exit_type' => 'free',
-                    'message'   => 'Free exit allowed within 15 minutes.',
-                    'session'   => $session->fresh(),
-                ]);
+            if (abs(now()->diffInMinutes($session->entry_time)) <= $freeMinutes) {
+                // Scenario 1: Free exit eligible
+                $isPaymentOk = true;
+                $exitType = 'free';
+                $successMessage = 'Free exit allowed within 15 minutes.';
             } else {
                 // Scenario 2: Unpaid and over 15 mins
                 return response()->json([
@@ -338,9 +353,7 @@ class ParkingSessionController extends Controller
                     'message'   => 'Please pay first via the mobile app.',
                 ], 403);
             }
-        }
-
-        if ($session->status === ParkingStatus::PAID) {
+        } elseif ($session->status === ParkingStatus::PAID) {
             // Check grace period
             if ($session->grace_end_time && now()->greaterThan($session->grace_end_time)) {
                 $overdueMinutes = $session->grace_end_time->diffInMinutes(now());
@@ -356,7 +369,47 @@ class ParkingSessionController extends Controller
                 ], 403);
             }
 
-            // Scenario 3: Normal paid exit
+            // Scenario 3: Normal paid exit eligible
+            $isPaymentOk = true;
+            $exitType = 'normal';
+            $successMessage = 'Verification successful. Barrier opened.';
+        } else {
+            return response()->json(['allowed' => false, 'message' => 'Invalid session state.'], 400);
+        }
+
+        // --- 2. ATTRIBUTE MISMATCH LOGIC SECOND ---
+        if ($isPaymentOk) {
+            $colorMismatch = strtolower($request->color) !== strtolower($session->color);
+            $modelMismatch = strtolower($request->model) !== strtolower($session->model);
+
+            if ($colorMismatch || $modelMismatch) {
+                // Scenario 5: Attribute mismatch
+                $alertType = $colorMismatch ? 'color_mismatch' : 'model_mismatch';
+                
+                ExitAlert::create([
+                    'alert_type'     => $alertType,
+                    'license_plate'  => $request->license_plate,
+                    'detected_color' => $request->color,
+                    'detected_model' => $request->model,
+                    'expected_color' => $session->color,
+                    'expected_model' => $session->model,
+                    'image_path'     => $imagePath,
+                    'session_id'     => $session->id,
+                ]);
+
+                Log::warning("EXIT VERIFICATION FAILED: {$alertType}", [
+                    'license_plate' => $request->license_plate,
+                    'session_id'    => $session->id,
+                ]);
+
+                return response()->json([
+                    'allowed'       => false,
+                    'message'       => 'Vehicle attribute mismatch. Admin has been notified.',
+                    'alert_type'    => $alertType,
+                ], 403);
+            }
+
+            // --- 3. FINAL COMPLETION ---
             $session->update([
                 'status'    => ParkingStatus::COMPLETED->value,
                 'exit_time' => now(),
@@ -364,12 +417,10 @@ class ParkingSessionController extends Controller
 
             return response()->json([
                 'allowed'   => true,
-                'exit_type' => 'normal',
-                'message'   => 'Verification successful. Barrier opened.',
+                'exit_type' => $exitType,
+                'message'   => $successMessage,
                 'session'   => $session->fresh(),
             ]);
         }
-        
-        return response()->json(['allowed' => false, 'message' => 'Invalid session state.'], 400);
     }
 }

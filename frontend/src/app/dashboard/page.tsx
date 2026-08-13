@@ -2,7 +2,13 @@ import Dashboard from '@/components/dashboards/dashboard';
 import { AppSidebarWrapper } from '@/components/sidebar/app-sidebar-wrapper';
 import { Header } from '@/components/sidebar/header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { getDashboardMetrics, getDashboardPeakHours, getDashboardRevenueTrends } from '@/app/actions/dashboard';
+import { 
+  getDashboardMetrics, 
+  getDashboardPeakHours, 
+  getDashboardRevenueTrends,
+  getDashboardDemographics,
+  getDashboardPaymentInsights
+} from '@/app/actions/dashboard';
 
 export const metadata = {
   title: 'Dashboard | SmartPark OS',
@@ -10,10 +16,12 @@ export const metadata = {
 };
 
 export default async function Page() {
-  const [metrics, peakHours, revenueTrends] = await Promise.all([
+  const [metrics, peakHours, revenueTrends, demographics, paymentInsights] = await Promise.all([
     getDashboardMetrics(),
     getDashboardPeakHours(),
-    getDashboardRevenueTrends()
+    getDashboardRevenueTrends(),
+    getDashboardDemographics(),
+    getDashboardPaymentInsights()
   ]);
 
   return (
@@ -25,6 +33,8 @@ export default async function Page() {
           metrics={metrics} 
           peakHours={peakHours} 
           revenueTrends={revenueTrends} 
+          demographics={demographics}
+          paymentInsights={paymentInsights}
         />
       </SidebarInset>
     </SidebarProvider>

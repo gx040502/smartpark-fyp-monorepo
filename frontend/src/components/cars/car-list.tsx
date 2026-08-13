@@ -9,11 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-export default function CarList({ initialData, searchParams }: {
+export default function CarList({ initialData, searchParams, filterOptions }: {
   initialData: CarListPaginationParams,
-  searchParams: { [key: string]: string | undefined }
+  searchParams: { [key: string]: string | undefined },
+  filterOptions: { colors: string[], models: string[] } | null,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,6 +31,13 @@ export default function CarList({ initialData, searchParams }: {
   const [search, setSearch] = useState(searchParams?.search || '');
   const [status, setStatus] = useState(searchParams?.status || 'all');
   const [color, setColor] = useState(searchParams?.color || 'all');
+  const [model, setModel] = useState(searchParams?.model || 'all');
+  const [dateField, setDateField] = useState(searchParams?.date_field || 'entry_time');
+  const [dateFrom, setDateFrom] = useState(searchParams?.date_from || '');
+  const [dateTo, setDateTo] = useState(searchParams?.date_to || '');
+
+  const colors = filterOptions?.colors || [];
+  const models = filterOptions?.models || [];
 
   // Push query dynamically through URL to invoke NextJS SSR rerender
   const updateQuery = (key: string, value: string) => {
@@ -43,6 +51,26 @@ export default function CarList({ initialData, searchParams }: {
     if (key !== 'page') params.delete('page');
 
     router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const updateMultipleQuery = (updates: Record<string, string>) => {
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value && value !== 'all') {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    }
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const clearDateRange = () => {
+    setDateFrom('');
+    setDateTo('');
+    setDateField('entry_time');
+    updateMultipleQuery({ date_from: '', date_to: '', date_field: '' });
   };
 
   const handleSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -64,46 +92,100 @@ export default function CarList({ initialData, searchParams }: {
     }
   };
 
+  const hasActiveDateFilter = dateFrom || dateTo;
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 space-y-0">
-          <CardTitle>Cars Directory</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search License Plate (Press Enter)..."
-                className="pl-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={handleSearchSubmit}
-              />
+        <CardHeader className="flex flex-col gap-4 space-y-0">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle>Cars Directory</CardTitle>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* Search */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search License Plate (Press Enter)..."
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchSubmit}
+                />
+              </div>
+
+              {/* Status Filter */}
+              <Select value={status} onValueChange={(val) => { setStatus(val || 'all'); updateQuery('status', val || 'all'); }}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="ENTER">Enter</SelectItem>
+                  <SelectItem value="PAID">Paid</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Color Filter — dynamic from DB */}
+              <Select value={color} onValueChange={(val) => { setColor(val || 'all'); updateQuery('color', val || 'all'); }}>
+                <SelectTrigger className="w-full sm:w-[130px] hidden md:flex">
+                  <SelectValue placeholder="Colour" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colours</SelectItem>
+                  {colors.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Model Filter — dynamic from DB */}
+              <Select value={model} onValueChange={(val) => { setModel(val || 'all'); updateQuery('model', val || 'all'); }}>
+                <SelectTrigger className="w-full sm:w-[160px] hidden md:flex">
+                  <SelectValue placeholder="Model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Models</SelectItem>
+                  {models.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
 
-            <Select value={status} onValueChange={(val) => { setStatus(val || 'all'); updateQuery('status', val || 'all'); }}>
+          {/* Date Range Filter Row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Date Range:</span>
+            <Select value={dateField} onValueChange={(val) => { setDateField(val); if (dateFrom || dateTo) updateQuery('date_field', val); }}>
               <SelectTrigger className="w-full sm:w-[140px]">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Field" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="ENTER">Enter</SelectItem>
-                <SelectItem value="PAID">Paid</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="entry_time">Entry Time</SelectItem>
+                <SelectItem value="exit_time">Exit Time</SelectItem>
               </SelectContent>
             </Select>
-
-            <Select value={color} onValueChange={(val) => { setColor(val || 'all'); updateQuery('color', val || 'all'); }}>
-              <SelectTrigger className="w-full sm:w-[130px] hidden md:flex">
-                <SelectValue placeholder="Color" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Colors</SelectItem>
-                <SelectItem value="White">White</SelectItem>
-                <SelectItem value="Black">Black</SelectItem>
-                <SelectItem value="Silver">Silver</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              type="date"
+              className="w-full sm:w-[160px]"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); updateMultipleQuery({ date_from: e.target.value, date_to: dateTo, date_field: dateField }); }}
+              placeholder="From"
+            />
+            <span className="text-sm text-muted-foreground hidden sm:inline">to</span>
+            <Input
+              type="date"
+              className="w-full sm:w-[160px]"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); updateMultipleQuery({ date_from: dateFrom, date_to: e.target.value, date_field: dateField }); }}
+              placeholder="To"
+            />
+            {hasActiveDateFilter && (
+              <Button variant="ghost" size="sm" onClick={clearDateRange} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4 mr-1" /> Clear
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -112,6 +194,8 @@ export default function CarList({ initialData, searchParams }: {
             <TableHeader>
               <TableRow>
                 <TableHead>License Plate</TableHead>
+                <TableHead>Image</TableHead>
+                <TableHead>Colour</TableHead>
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Entry Time</TableHead>
                 <TableHead>Duration</TableHead>
@@ -123,15 +207,6 @@ export default function CarList({ initialData, searchParams }: {
               {data.length > 0 ? (
                 data.map((row: any) => {
                   const entryTime = new Date(row.entry_time);
-                  const exitTime = row.exit_time ? new Date(row.exit_time) : null;
-                  const durationStr = exitTime
-                    ? (() => {
-                      const diffMs = exitTime.getTime() - entryTime.getTime();
-                      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                      return `${diffHrs}h ${diffMins}m`;
-                    })()
-                    : '--';
 
                   return (
                     <TableRow
@@ -141,22 +216,36 @@ export default function CarList({ initialData, searchParams }: {
                     >
                       <TableCell className="font-medium tracking-wider">{row.license_plate}</TableCell>
                       <TableCell>
+                        {row.car_image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={row.car_image_url} alt="Car" className="h-10 w-16 object-cover rounded shadow-sm border border-gray-200" />
+                        ) : (
+                          <div className="h-10 w-16 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400 border border-gray-200 shadow-sm">No Image</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">{row.color}</TableCell>
+                      <TableCell>
                         <div className="font-medium text-sm text-gray-900">{row.model}</div>
-                        <div className="text-xs text-muted-foreground">{row.color}</div>
                       </TableCell>
                       <TableCell className="text-sm">
                         {entryTime.toLocaleDateString()} <br />
                         <span className="text-muted-foreground">{entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </TableCell>
-                      <TableCell className="text-sm">{durationStr}</TableCell>
-                      <TableCell>{row.amount_due > 0 ? parseFloat(row.amount_due).toFixed(2) : '-'}</TableCell>
+                      <TableCell className="text-sm">{row.duration || '--'}</TableCell>
+                      <TableCell>
+                        {parseFloat(row.amount_due) > 0
+                          ? parseFloat(row.amount_due).toFixed(2)
+                          : parseFloat(row.amount_due) === 0
+                            ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">FREE</Badge>
+                            : '-'}
+                      </TableCell>
                       <TableCell>{getStatusBadge(row.status)}</TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     <CardDescription>No parking sessions found matching your criteria.</CardDescription>
                   </TableCell>
                 </TableRow>

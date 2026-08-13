@@ -2,52 +2,39 @@ import cv2
 import math
 import numpy as np
 from ultralytics import YOLO
-from PIL import Image
 import concurrent.futures
-import threading
-import torch
 import os
-import re
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
-try:
-    from transformers import Qwen3VLForConditionalGeneration
-except ImportError:
-    from transformers import AutoModelForCausalLM as Qwen3VLForConditionalGeneration
-from transformers import AutoProcessor
-from huggingface_hub import login
-
 # ==============================================================================================================
 # 1. CONFIGURATION
 # ==============================================================================================================
 # Model Paths
+CAR_MODEL_PATH = "yolov8n.pt"
+#r"G:\My Drive\FYP\CAR MODEL\outputs\car_mixed\yolo11_run_01\weights\best.pt"
 PLATE_MODEL_PATH = r"G:\My Drive\FYP\LICENSE PLATE\outputs\License-Plate-Recognition-11\yolo11_run_02\weights\best.pt"
-OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo11_run_01\weights\best.pt"
-INPUT_VIDEO = r"C:\Users\Tan Gyap Xun\Desktop\DEGREE\UTAR video\UTAR 3 CAR\UTAR 3 CAR-1.mp4"
+OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo8_run_01\weights\best.pt"
+BRAND_MODEL_PATH = r"G:\My Drive\FYP\CAR_CLASSIFICATION\outputs\version4_split\yolo_cls_run_01\weights\best.pt"
+
+INPUT_VIDEO = r"E:\BACKUP\UTAR video\ONE CAR\WUM8729 gray toyota.mp4"
 OUTPUT_VIDEO = "lpr_entrance_output.mp4"
 SAVE_VIDEO = True
 
-HF_TOKEN = os.getenv("HF_TOKEN")
 LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1:8000")
-QWEN_MODEL_ID = 'Qwen/Qwen3-VL-2B-Instruct'
 
 # Application Settings
-EXPANSION_FACTOR = 6.0
-PLATE_CONFIDENCE_THRESHOLD = 0.3
+CAR_CONFIDENCE_THRESHOLD = 0.5
+PLATE_CONFIDENCE_THRESHOLD = 0.7
 OCR_CONFIDENCE_THRESHOLD = 0.7
-SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
+SECONDS_TO_CONFIRM = 2
 
 # ==============================================================================================================
 # 2. IMAGE PROCESSING PIPELINE (ISOLATE, DESKEW, ENHANCE)
 # ==============================================================================================================
 def isolate_and_get_corners(plate_crop):
-    """
-    Finds the plate's outline silently, returns a tight crop (color) containing just
-    the plate, AND the left/right corner points of its true rectangle.
-    """
     gray = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2GRAY)
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
@@ -83,7 +70,6 @@ def isolate_and_get_corners(plate_crop):
     return cropped, (left_x, left_y, right_x, right_y)
 
 def deskew_by_corners(ROI, left_x, left_y, right_x, right_y):
-    """Rotates ROI level using two known edge points via simple trigonometry."""
     opp = right_y - left_y
     hyp = ((left_x - right_x)**2 + (left_y - right_y)**2)**0.5
 
@@ -114,22 +100,17 @@ def deskew_by_corners(ROI, left_x, left_y, right_x, right_y):
     return result
 
 def process_plate_pipeline(plate_crop):
-    """Runs the cropped plate through isolation, deskew, and color enhancement."""
-    # 1. Isolate the plate itself
     plate_crop, corners = isolate_and_get_corners(plate_crop)
 
-    # 2. Deskew
     if corners is not None:
         plate_crop = deskew_by_corners(plate_crop, *corners)
 
-    # 3. Color Inversion for Black Plates
     gray_for_check = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2GRAY)
     _, binary_for_check = cv2.threshold(gray_for_check, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
     if np.mean(binary_for_check) < 127:
         plate_crop = cv2.bitwise_not(plate_crop)
 
-    # 4. Enhancement (Upscale -> CLAHE -> Unsharp Mask -> Gamma -> Tint Removal)
     height, width = plate_crop.shape[:2]
     plate_crop = cv2.resize(plate_crop, (int(width * 1.5), int(height * 1.5)), interpolation=cv2.INTER_CUBIC)
 
@@ -154,101 +135,133 @@ def process_plate_pipeline(plate_crop):
 
 
 # ==============================================================================================================
-# 3. BACKGROUND WORKER FOR QWEN
+# 3. COLOR DETECTION ENGINE (SILENT BACKGROUND MODE)
 # ==============================================================================================================
-def parse_car_attributes(text):
-    """
-    Parse Qwen's response in '[Color] - [Brand]' format.
-    Returns a dict: {'color': '...', 'model': '...'}
-    """
-    cleaned = text.strip().replace("\n", " ")
-    
-    if ' - ' in cleaned:
-        parts = cleaned.split(' - ', 1)
-        color = parts[0].strip()
-        model = parts[1].strip()
-    else:
-        color = "Unknown"
-        model = cleaned if cleaned else "Unknown"
-    
-    return {'color': color, 'model': model}
+HUE_BANDS = {
+    "Red":    [(0, 9), (160, 179)],
+    "Yellow": [(10, 33)],
+    "Green":  [(34, 85)],
+    "Blue":   [(86, 135)],
+    "Purple": [(136, 159)],
+}
 
-def save_car_details(plate_number, color, model):
-    """Send car entry details to the Laravel backend via HTTP POST."""
+def build_glare_shadow_mask(roi_bgr, v_high=248, s_low=15, v_low=12, bright_percentile_cut=70):
+    hsv = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+
+    is_blown_highlight = (v >= v_high) & (s <= s_low)
+    is_crushed_shadow = (v <= v_low)
+    keep_mask = ~(is_blown_highlight | is_crushed_shadow)
+
+    if keep_mask.sum() < 0.05 * keep_mask.size:
+        keep_mask[:] = True 
+
+    v_cutoff = np.percentile(v[keep_mask], bright_percentile_cut)
+    keep_mask = keep_mask & (v.astype(np.float32) <= v_cutoff)
+
+    if keep_mask.sum() < 0.05 * keep_mask.size:
+        keep_mask[:] = True 
+
+    return keep_mask
+
+def classify_hue(median_h):
+    for name, ranges in HUE_BANDS.items():
+        for lo, hi in ranges:
+            if lo <= median_h <= hi:
+                return name
+    return "Unknown"
+
+def detect_car_color(car_crop, roi_box=None, sat_thresh=35, white_v_thresh=170, black_v_thresh=95):
+    height, width = car_crop.shape[:2]
+
+    if roi_box is None:
+        start_y, end_y = int(height * 0.25), int(height * 0.42)
+        start_x, end_x = int(width * 0.30), int(width * 0.70)
+    else:
+        start_x, start_y, end_x, end_y = roi_box
+
+    roi = car_crop[start_y:end_y, start_x:end_x]
+    if roi.size == 0:
+        return "Unknown"
+
+    keep_mask = build_glare_shadow_mask(roi)
+
+    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    h_ch, s_ch, v_ch = cv2.split(hsv_roi)
+    
+    median_h = np.median(h_ch[keep_mask])
+    median_s = np.median(s_ch[keep_mask])
+    median_v = np.median(v_ch[keep_mask])
+
+    if median_v <= black_v_thresh:
+        return "Black"
+    elif median_s < sat_thresh:
+        if median_v >= white_v_thresh:
+            return "White"
+        else:
+            return "Gray"
+    else:
+        return classify_hue(median_h)
+
+
+# ==============================================================================================================
+# 4. YOLO BRAND DETECTION & DATABASE SAVING
+# ==============================================================================================================
+def save_car_details(plate_number, color, model, car_crop_bgr):
     payload = {
         'license_plate': plate_number,
         'color': color,
         'model': model,
     }
+    
+    files = None
+    if car_crop_bgr is not None:
+        # Encode the image to JPEG format in memory
+        _, img_encoded = cv2.imencode('.jpg', car_crop_bgr)
+        files = {
+            'image': ('car.jpg', img_encoded.tobytes(), 'image/jpeg')
+        }
+        
     try:
         response = requests.post(
             f"{LARAVEL_API_URL}/api/parking-sessions/car-entry",
-            json=payload,
+            data=payload,
+            files=files,
             timeout=5
         )
         if response.status_code == 201:
             print(f"\n✅ [DATABASE] Parking session created! "
-                  f"Plate: {plate_number} | Color: {color} | Model: {model}")
+                  f"Plate: {plate_number} | Color: {color} | Brand: {model}")
         else:
             print(f"\n⚠️ [DATABASE] Unexpected response ({response.status_code}): {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"\n❌ [DATABASE ERROR] Failed to save {plate_number}: {e}")
 
-def fetch_qwen_attributes(qwen_model, processor, device, pil_image, plate_number):
-    """This function runs in the background. It calls Qwen locally and then simulates a DB save."""
-    question = (
-        "Look at the car in this image. Identify its primary color and its brand/make "
-        "(e.g., Mercedes, Proton, Perodua, Honda, Toyota). "
-        "Return ONLY the result in this exact format: [Color] - [Brand]. "
-        "Do not include any other words."
-    )
-    
-    messages = [
-        {"role": "user", "content": [
-            {"type": "image", "image": pil_image},
-            {"type": "text", "text": question}
-        ]}
-    ]
-
+def extract_car_attributes(brand_model, car_crop_bgr, plate_number):
+    """Background worker: Color uses full BGR crop; Brand classification uses Grayscale crop."""
     try:
-        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = processor(
-            text=[text], 
-            images=[pil_image], 
-            return_tensors="pt", 
-            padding=True
-        )
+        # 1. Color Detection (Uses original BGR color crop)
+        detected_color = detect_car_color(car_crop_bgr)
         
-        inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
-
-        with torch.no_grad():
-            generated_ids = qwen_model.generate(
-                **inputs,
-                max_new_tokens=20,
-                do_sample=False,
-                temperature=0.1,
-            )
-
-        generated_ids_trimmed = [
-            out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs["input_ids"], generated_ids)
-        ]
+        # 2. Brand Detection (Converts crop to Grayscale for YOLO classification)
+        gray_crop = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2GRAY)
+        gray_3ch_crop = cv2.cvtColor(gray_crop, cv2.COLOR_GRAY2BGR)  # Convert back to 3-channel gray for YOLO input tensor
         
-        response = processor.batch_decode(
-            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )[0]
+        results = brand_model(gray_3ch_crop, verbose=False)
+        top1_idx = results[0].probs.top1
+        detected_brand = results[0].names[top1_idx]
         
-        attributes = parse_car_attributes(response)
-        save_car_details(plate_number, attributes['color'], attributes['model'])
+        # 3. Fire to Database
+        save_car_details(plate_number, detected_color, detected_brand, car_crop_bgr)
         
     except Exception as e:
-        print(f"\n❌ [QWEN ERROR] Failed to get attributes for {plate_number}: {e}")
+        print(f"\n❌ [ATTRIBUTE ERROR] Failed to extract details for {plate_number}: {e}")
 
 
 # ==============================================================================================================
-# 4. OCR EXTRACTION & SORTING
+# 5. OCR EXTRACTION
 # ==============================================================================================================
 def extract_plate_text(ocr_model, plate_crop_bgr):
-    """Runs OCR on the cropped plate and sorts characters from left to right."""
     results = ocr_model.predict(plate_crop_bgr, conf=OCR_CONFIDENCE_THRESHOLD, verbose=False)
     
     detected_chars = []
@@ -256,6 +269,10 @@ def extract_plate_text(ocr_model, plate_crop_bgr):
         x1 = float(box.xyxy[0][0])
         cls_id = int(box.cls[0])
         char_name = ocr_model.names[cls_id]
+
+        if len(char_name) == 2:
+            char_name = char_name[1] 
+
         detected_chars.append((x1, char_name))
     
     detected_chars.sort(key=lambda item: item[0])
@@ -263,39 +280,21 @@ def extract_plate_text(ocr_model, plate_crop_bgr):
 
 
 # ==============================================================================================================
-# 5. MAIN VIDEO LOOP
+# 6. MAIN VIDEO LOOP
 # ==============================================================================================================
 def load_all_models():
-    print("--- LOADING MODELS (This may take a minute) ---")
+    print("--- LOADING YOLO MODELS ---")
+    car_model = YOLO(CAR_MODEL_PATH)
     plate_model = YOLO(PLATE_MODEL_PATH)
     ocr_model = YOLO(OCR_MODEL_PATH)
+    brand_model = YOLO(BRAND_MODEL_PATH)
     
-    if HF_TOKEN:
-        login(token=HF_TOKEN)
-    
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Loading Qwen ({QWEN_MODEL_ID}) on {device}...")
-    
-    if device == "cuda":
-        qwen_model = Qwen3VLForConditionalGeneration.from_pretrained(
-            QWEN_MODEL_ID,
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True
-        ).to(device)
-    else:
-        qwen_model = Qwen3VLForConditionalGeneration.from_pretrained(
-            QWEN_MODEL_ID,
-            torch_dtype=torch.float32,
-            trust_remote_code=True
-        )
-        
-    processor = AutoProcessor.from_pretrained(QWEN_MODEL_ID, trust_remote_code=True)
-    return plate_model, ocr_model, qwen_model, processor, device
+    return car_model, plate_model, ocr_model, brand_model
 
 def process_video():
-    plate_model, ocr_model, qwen_model, processor, device = load_all_models()
+    car_model, plate_model, ocr_model, brand_model = load_all_models()
     
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
     
     processed_track_ids = set() 
     track_history = {} 
@@ -311,7 +310,7 @@ def process_video():
     if fps <= 0: fps = 30 
     
     min_frames_to_confirm = int(fps * SECONDS_TO_CONFIRM)
-    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames (2 seconds) to confirm plates.")
+    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames to confirm cars.")
     
     out = None
     if SAVE_VIDEO:
@@ -326,74 +325,73 @@ def process_video():
         ret, frame = cap.read() 
         if not ret: break 
 
-        results = plate_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False)
+        # TRACK CARS
+        results = car_model.track(frame, persist=True, tracker="bytetrack.yaml", conf=CAR_CONFIDENCE_THRESHOLD, verbose=False, classes=[2])
         
         if results[0].boxes is not None and results[0].boxes.id is not None:
             boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
             track_ids = results[0].boxes.id.cpu().numpy().astype(int)
 
             for box, track_id in zip(boxes, track_ids):
-                x1, y1, x2, y2 = box
+                cx1, cy1, cx2, cy2 = box
                 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cx1, cy1 = max(0, cx1), max(0, cy1)
+                cx2, cy2 = min(frame_width, cx2), min(frame_height, cy2)
+                
+                cv2.rectangle(frame, (cx1, cy1), (cx2, cy2), (255, 0, 0), 2)
                 
                 track_history[track_id] = track_history.get(track_id, 0) + 1 
                 frames_seen = track_history[track_id]
                 
                 if track_id in processed_track_ids:
-                    cv2.putText(frame, "Processed", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(frame, "Processed", (cx1, cy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     continue
                 
                 if frames_seen < min_frames_to_confirm:
-                    cv2.putText(frame, f"Tracking... {frames_seen}/{min_frames_to_confirm}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
+                    cv2.putText(frame, f"Tracking Car... {frames_seen}/{min_frames_to_confirm}", (cx1, cy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                     continue
                 
                 # ==========================================
-                # STABILITY THRESHOLD REACHED! NEW CAR CONFIRMED!
+                # CAR IS STABLE! FIND PLATE INSIDE CAR CROP
                 # ==========================================
+                car_crop_bgr = frame[cy1:cy2, cx1:cx2]
+                if car_crop_bgr.size == 0: continue
                 
-                # 1. CROP PLATE & PROCESS THROUGH ENHANCEMENT PIPELINE
-                plate_crop = frame[max(0, y1):min(frame_height, y2), max(0, x1):min(frame_width, x2)]
+                plate_results = plate_model(car_crop_bgr, conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False)
+                
+                if plate_results[0].boxes is None or len(plate_results[0].boxes) == 0:
+                    continue 
+                
+                plate_box = plate_results[0].boxes.xyxy[0].cpu().numpy().astype(int)
+                px1, py1, px2, py2 = plate_box
+                
+                px1, py1 = max(0, px1), max(0, py1)
+                px2, py2 = min(car_crop_bgr.shape[1], px2), min(car_crop_bgr.shape[0], py2)
+                
+                plate_crop = car_crop_bgr[py1:py2, px1:px2]
                 if plate_crop.size == 0: continue
                 
+                cv2.rectangle(frame, (cx1 + px1, cy1 + py1), (cx1 + px2, cy1 + py2), (0, 255, 0), 2)
+
                 try:
-                    # Pass the raw crop through isolation, deskew, and enhancement before OCR
                     enhanced_plate = process_plate_pipeline(plate_crop)
                 except Exception as e:
-                    print(f"⚠️ [SYSTEM] Skipping plate ID {track_id} due to enhancement failure: {e}")
+                    print(f"⚠️ [SYSTEM] Skipping plate on car ID {track_id} due to enhancement failure: {e}")
                     continue
                 
-                # 2. OCR EXTRACTION
                 plate_text = extract_plate_text(ocr_model, enhanced_plate)
-                
                 if not plate_text: continue
                 
                 processed_track_ids.add(track_id)
                 
-                print(f"\n🚗 [SYSTEM] Stable Plate Detected: {plate_text} (Track ID: {track_id})")
+                print(f"\n🚗 [SYSTEM] Stable Car & Plate Detected: {plate_text} (Track ID: {track_id})")
                 print(f"   [SYSTEM] Barrier Opened! Letting car enter immediately...")
 
-                # 3. EXPAND BOX FOR CAR CROP
-                w = x2 - x1
-                h = y2 - y1
-                
-                car_x1 = max(0, int(x1 - (w * EXPANSION_FACTOR)))
-                car_x2 = min(frame_width, int(x2 + (w * EXPANSION_FACTOR)))
-                car_y1 = max(0, int(y1 - (h * EXPANSION_FACTOR)))
-                car_y2 = min(frame_height, int(y2 + (h * EXPANSION_FACTOR)))
-                
-                car_crop_bgr = frame[car_y1:car_y2, car_x1:car_x2]
-                
-                cv2.rectangle(frame, (car_x1, car_y1), (car_x2, car_y2), (255, 0, 0), 2)
-                cv2.putText(frame, plate_text, (x1, y1 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                cv2.putText(frame, plate_text, (cx1, cy1 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                # 4. SEND TO QWEN (BACKGROUND THREAD)
-                if car_crop_bgr.size > 0:
-                    car_crop_rgb = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2RGB)
-                    pil_image = Image.fromarray(car_crop_rgb)
-                    
-                    print(f"   [SYSTEM] Sending {plate_text} crop to LOCAL Qwen in background...")
-                    executor.submit(fetch_qwen_attributes, qwen_model, processor, device, pil_image, plate_text)
+                # Send a copy of the car crop to the background thread
+                safe_car_crop = car_crop_bgr.copy()
+                executor.submit(extract_car_attributes, brand_model, safe_car_crop, plate_text)
 
         if out: out.write(frame)
         cv2.imshow("SmartPark LPR", frame)
@@ -405,7 +403,7 @@ def process_video():
     if out: out.release()
     cv2.destroyAllWindows()
     
-    print("\nWaiting for remaining background Qwen tasks to finish...")
+    print("\nWaiting for remaining background attribute tasks to finish...")
     executor.shutdown(wait=True) 
     print("Processing Complete.")
 

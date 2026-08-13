@@ -1,18 +1,19 @@
 """
-LPR_EXIT.py — SmartPark Exit Gate License Plate Recognition Pipeline
+LPR_exit_CAR.py — SmartPark Exit Gate License Plate Recognition Pipeline
 ═══════════════════════════════════════════════════════════════════════════════════
 A standalone script that combines:
-  1. License Plate Detection   — YOLOv11
-  2. Image Enhancement         — Isolate, Deskew, Invert, CLAHE, Sharpen, Gamma
-  3. Character Recognition     — YOLOv11 OCR
-  4. Car Attribute Extraction  — Qwen3-VL (color & brand) [SYNCHRONOUS]
-  5. Exit Verification         — HTTP POST to Laravel backend (allow / deny)
+  1. Car Detection & Tracking  — YOLOv11
+  2. License Plate Detection   — YOLOv11 (Runs inside Car Crop)
+  3. Image Enhancement         — Isolate, Deskew, Invert, CLAHE, Sharpen, Gamma
+  4. Character Recognition     — YOLOv11 OCR
+  5. Car Attribute Extraction  — OpenCV HSV (Color) + YOLO Classification (Brand) [SYNCHRONOUS]
+  6. Exit Verification         — HTTP POST to Laravel backend (allow / deny)
 
 Usage:
-    python LPR_EXIT.py
-    python LPR_EXIT.py --video path/to/video.mp4
-    python LPR_EXIT.py --video path/to/video.mp4 --output output.mp4
-    python LPR_EXIT.py --no-save-video
+    python LPR_exit_CAR.py
+    python LPR_exit_CAR.py --video path/to/video.mp4
+    python LPR_exit_CAR.py --video path/to/video.mp4 --output output.mp4
+    python LPR_exit_CAR.py --no-save-video
 """
 
 import argparse
@@ -21,18 +22,8 @@ import os
 import cv2
 import numpy as np
 import requests
-import torch
 from dotenv import load_dotenv
-from PIL import Image
 from ultralytics import YOLO
-
-try:
-    from transformers import Qwen3VLForConditionalGeneration
-except ImportError:
-    from transformers import AutoModelForCausalLM as Qwen3VLForConditionalGeneration
-from transformers import AutoProcessor
-from huggingface_hub import login
-
 
 # ==============================================================================================================
 # 1. CONFIGURATION
@@ -41,24 +32,24 @@ from huggingface_hub import login
 load_dotenv()
 
 # Model Paths
+CAR_MODEL_PATH = "yolov8n.pt"
 PLATE_MODEL_PATH = r"G:\My Drive\FYP\LICENSE PLATE\outputs\License-Plate-Recognition-11\yolo11_run_02\weights\best.pt"
-OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo11_run_01\weights\best.pt"
+OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo8_run_01\weights\best.pt"
+BRAND_MODEL_PATH = r"G:\My Drive\FYP\CAR_CLASSIFICATION\outputs\version4_split\yolo_cls_run_01\weights\best.pt"  # <-- Your new YOLO brand classifier
 
 # Video I/O  (overridable via CLI args)
-INPUT_VIDEO = r"C:\Users\Tan Gyap Xun\Desktop\DEGREE\UTAR video\UTAR 3 CAR\UTAR 3 CAR-1.mp4"
+INPUT_VIDEO = r"E:\BACKUP\UTAR video\ONE CAR\VQM568 black tesla 4.5.mp4"
 OUTPUT_VIDEO = "lpr_exit_output.mp4"
 SAVE_VIDEO = True
 
-# API & Model Config
-HF_TOKEN = os.getenv("HF_TOKEN")
+# API Config
 LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1:8000")
-QWEN_MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
 
 # Application Settings
-EXPANSION_FACTOR = 6.0
-PLATE_CONFIDENCE_THRESHOLD = 0.3
+CAR_CONFIDENCE_THRESHOLD = 0.5
+PLATE_CONFIDENCE_THRESHOLD = 0.7
 OCR_CONFIDENCE_THRESHOLD = 0.7
-SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
+SECONDS_TO_CONFIRM = 4.5  # Wait this many frames based on FPS before triggering processing
 
 
 # ==============================================================================================================
@@ -67,12 +58,16 @@ SECONDS_TO_CONFIRM = 1  # Wait this many seconds before triggering Qwen
 
 def load_all_models():
     """
-    Load and return all three models used in the pipeline:
+    Load and return all four models used in the pipeline:
+      - YOLO car detector
       - YOLO plate detector
       - YOLO OCR character recogniser
-      - Qwen3-VL vision-language model (for car color & brand)
+      - YOLO brand classification model
     """
-    print("--- LOADING MODELS (This may take a minute) ---")
+    print("--- LOADING YOLO MODELS ---")
+
+    car_model = YOLO(CAR_MODEL_PATH)
+    print("✅ Loaded YOLO Car Model.")
 
     plate_model = YOLO(PLATE_MODEL_PATH)
     print("✅ Loaded YOLO Plate Model.")
@@ -80,29 +75,10 @@ def load_all_models():
     ocr_model = YOLO(OCR_MODEL_PATH)
     print("✅ Loaded YOLO OCR Model.")
 
-    if HF_TOKEN:
-        login(token=HF_TOKEN)
+    brand_model = YOLO(BRAND_MODEL_PATH)
+    print("✅ Loaded YOLO Brand Classification Model.")
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Loading Qwen ({QWEN_MODEL_ID}) on {device}...")
-
-    if device == "cuda":
-        qwen_model = Qwen3VLForConditionalGeneration.from_pretrained(
-            QWEN_MODEL_ID,
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True
-        ).to(device)
-    else:
-        qwen_model = Qwen3VLForConditionalGeneration.from_pretrained(
-            QWEN_MODEL_ID,
-            torch_dtype=torch.float32,
-            trust_remote_code=True
-        )
-
-    processor = AutoProcessor.from_pretrained(QWEN_MODEL_ID, trust_remote_code=True)
-    print("✅ Loaded Qwen Model.")
-
-    return plate_model, ocr_model, qwen_model, processor, device
+    return car_model, plate_model, ocr_model, brand_model
 
 
 # ==============================================================================================================
@@ -110,10 +86,6 @@ def load_all_models():
 # ==============================================================================================================
 
 def isolate_and_get_corners(plate_crop):
-    """
-    Finds the plate's outline silently, returns a tight crop (color) containing just
-    the plate, AND the left/right corner points of its true rectangle.
-    """
     gray = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2GRAY)
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
@@ -149,7 +121,6 @@ def isolate_and_get_corners(plate_crop):
     return cropped, (left_x, left_y, right_x, right_y)
 
 def deskew_by_corners(ROI, left_x, left_y, right_x, right_y):
-    """Rotates ROI level using two known edge points via simple trigonometry."""
     opp = right_y - left_y
     hyp = ((left_x - right_x)**2 + (left_y - right_y)**2)**0.5
 
@@ -180,7 +151,6 @@ def deskew_by_corners(ROI, left_x, left_y, right_x, right_y):
     return result
 
 def process_plate_pipeline(plate_crop):
-    """Runs the cropped plate through isolation, deskew, and color enhancement."""
     plate_crop, corners = isolate_and_get_corners(plate_crop)
 
     if corners is not None:
@@ -216,8 +186,100 @@ def process_plate_pipeline(plate_crop):
 
 
 # ==============================================================================================================
-# 4. YOLO OCR EXTRACTION
+# 4. COLOR DETECTION ENGINE (HSV MATH)
 # ==============================================================================================================
+
+HUE_BANDS = {
+    "Red":    [(0, 9), (160, 179)],
+    "Yellow": [(10, 33)],
+    "Green":  [(34, 85)],
+    "Blue":   [(86, 135)],
+    "Purple": [(136, 159)],
+}
+
+def build_glare_shadow_mask(roi_bgr, v_high=248, s_low=15, v_low=12, bright_percentile_cut=70):
+    hsv = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+
+    is_blown_highlight = (v >= v_high) & (s <= s_low)
+    is_crushed_shadow = (v <= v_low)
+    keep_mask = ~(is_blown_highlight | is_crushed_shadow)
+
+    if keep_mask.sum() < 0.05 * keep_mask.size:
+        keep_mask[:] = True 
+
+    v_cutoff = np.percentile(v[keep_mask], bright_percentile_cut)
+    keep_mask = keep_mask & (v.astype(np.float32) <= v_cutoff)
+
+    if keep_mask.sum() < 0.05 * keep_mask.size:
+        keep_mask[:] = True 
+
+    return keep_mask
+
+def classify_hue(median_h):
+    for name, ranges in HUE_BANDS.items():
+        for lo, hi in ranges:
+            if lo <= median_h <= hi:
+                return name
+    return "Unknown"
+
+def detect_car_color(car_crop, roi_box=None, sat_thresh=35, white_v_thresh=170, black_v_thresh=95):
+    height, width = car_crop.shape[:2]
+
+    if roi_box is None:
+        start_y, end_y = int(height * 0.25), int(height * 0.42)
+        start_x, end_x = int(width * 0.30), int(width * 0.70)
+    else:
+        start_x, start_y, end_x, end_y = roi_box
+
+    roi = car_crop[start_y:end_y, start_x:end_x]
+    if roi.size == 0:
+        return "Unknown"
+
+    keep_mask = build_glare_shadow_mask(roi)
+
+    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    h_ch, s_ch, v_ch = cv2.split(hsv_roi)
+    
+    median_h = np.median(h_ch[keep_mask])
+    median_s = np.median(s_ch[keep_mask])
+    median_v = np.median(v_ch[keep_mask])
+
+    if median_v <= black_v_thresh:
+        return "Black"
+    elif median_s < sat_thresh:
+        if median_v >= white_v_thresh:
+            return "White"
+        else:
+            return "Gray"
+    else:
+        return classify_hue(median_h)
+
+
+# ==============================================================================================================
+# 5. SYNCHRONOUS ATTRIBUTE EXTRACTION & OCR
+# ==============================================================================================================
+
+def get_car_attributes(brand_model, car_crop_bgr):
+    """
+    Extracts Color via OpenCV HSV (using BGR crop) and Brand via YOLO (using Grayscale crop).
+    """
+    try:
+        # 1. Get Color
+        color = detect_car_color(car_crop_bgr)
+
+        # 2. Get Brand (Convert to Grayscale -> 3-channel for YOLO)
+        gray_crop = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2GRAY)
+        gray_3ch_crop = cv2.cvtColor(gray_crop, cv2.COLOR_GRAY2BGR)
+        
+        results = brand_model(gray_3ch_crop, verbose=False)
+        top1_idx = results[0].probs.top1
+        brand = results[0].names[top1_idx]
+
+        return {'color': color, 'model': brand}
+    except Exception as e:
+        print(f"\n❌ [ATTRIBUTE ERROR] Failed to extract details: {e}")
+        return {'color': 'Unknown', 'model': 'Unknown'}
 
 def extract_plate_text(ocr_model, plate_crop_bgr):
     """Runs OCR on the cropped plate and sorts characters from left to right."""
@@ -228,6 +290,8 @@ def extract_plate_text(ocr_model, plate_crop_bgr):
         x1 = float(box.xyxy[0][0])
         cls_id = int(box.cls[0])
         char_name = ocr_model.names[cls_id]
+        if len(char_name) == 2:
+            char_name = char_name[1] 
         detected_chars.append((x1, char_name))
     
     detected_chars.sort(key=lambda item: item[0])
@@ -235,83 +299,7 @@ def extract_plate_text(ocr_model, plate_crop_bgr):
 
 
 # ==============================================================================================================
-# 5. QWEN ATTRIBUTE DETECTION (SYNCHRONOUS)
-# ==============================================================================================================
-
-def parse_car_attributes(text):
-    """
-    Parse Qwen's response in '[Color] - [Brand]' format.
-    Returns a dict: {'color': '...', 'model': '...'}
-    """
-    cleaned = text.strip().replace("\n", " ")
-
-    if ' - ' in cleaned:
-        parts = cleaned.split(' - ', 1)
-        color = parts[0].strip()
-        model = parts[1].strip()
-    else:
-        color = "Unknown"
-        model = cleaned if cleaned else "Unknown"
-
-    return {'color': color, 'model': model}
-
-
-def get_qwen_attributes(qwen_model, processor, device, pil_image):
-    """
-    Runs Qwen SYNCHRONOUSLY and returns the parsed attributes.
-    Unlike the entry gate which fires-and-forgets, exit verification
-    MUST wait for the result before calling the backend.
-    """
-    question = (
-        "Look at the car in this image. Identify its primary color and its brand/make "
-        "(e.g., Mercedes, Proton, Perodua, Honda, Toyota). "
-        "Return ONLY the result in this exact format: [Color] - [Brand]. "
-        "Do not include any other words."
-    )
-
-    messages = [
-        {"role": "user", "content": [
-            {"type": "image", "image": pil_image},
-            {"type": "text", "text": question}
-        ]}
-    ]
-
-    try:
-        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = processor(
-            text=[text],
-            images=[pil_image],
-            return_tensors="pt",
-            padding=True
-        )
-
-        inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
-
-        with torch.no_grad():
-            generated_ids = qwen_model.generate(
-                **inputs,
-                max_new_tokens=20,
-                do_sample=False,
-                temperature=0.1,
-            )
-
-        generated_ids_trimmed = [
-            out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs["input_ids"], generated_ids)
-        ]
-
-        response = processor.batch_decode(
-            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )[0]
-
-        return parse_car_attributes(response)
-
-    except Exception as e:
-        print(f"\n❌ [QWEN ERROR] Failed to get attributes: {e}")
-        return None
-
-
-# ==============================================================================================================
-# 6. EXIT VERIFICATION
+# 6. EXIT VERIFICATION (BACKEND)
 # ==============================================================================================================
 
 def verify_and_exit(plate_number, color, model, car_crop_bgr):
@@ -375,7 +363,7 @@ def verify_and_exit(plate_number, color, model, car_crop_bgr):
 # ==============================================================================================================
 
 def process_video(input_video, output_video, save_video):
-    plate_model, ocr_model, qwen_model, processor, device = load_all_models()
+    car_model, plate_model, ocr_model, brand_model = load_all_models()
 
     processed_track_ids = set()  
     track_history = {}           
@@ -392,7 +380,7 @@ def process_video(input_video, output_video, save_video):
         fps = 30  
 
     min_frames_to_confirm = int(fps * SECONDS_TO_CONFIRM)
-    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames ({SECONDS_TO_CONFIRM} seconds) to confirm plates.")
+    print(f"FPS detected as {fps}. Waiting {min_frames_to_confirm} frames to confirm cars.")
 
     out = None
     if save_video:
@@ -408,9 +396,14 @@ def process_video(input_video, output_video, save_video):
         if not ret:
             break
 
-        results = plate_model.track(
-            frame, persist=True, tracker="bytetrack.yaml",
-            conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False
+        # 🚀 TRACK CARS INSTEAD OF PLATES
+        results = car_model.track(
+            frame, 
+            persist=True, 
+            tracker="bytetrack.yaml",
+            conf=CAR_CONFIDENCE_THRESHOLD, 
+            classes=[2],  # <-- Uncomment this if you switch to default yolov8n.pt
+            verbose=False
         )
 
         if results[0].boxes is not None and results[0].boxes.id is not None:
@@ -418,110 +411,116 @@ def process_video(input_video, output_video, save_video):
             track_ids = results[0].boxes.id.cpu().numpy().astype(int)
 
             for box, track_id in zip(boxes, track_ids):
-                x1, y1, x2, y2 = box
+                cx1, cy1, cx2, cy2 = box
+                
+                # Clamp car coordinates to frame boundaries
+                cx1, cy1 = max(0, cx1), max(0, cy1)
+                cx2, cy2 = min(frame_width, cx2), min(frame_height, cy2)
 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                # Draw Car Box (Blue)
+                cv2.rectangle(frame, (cx1, cy1), (cx2, cy2), (255, 0, 0), 2)
 
                 track_history[track_id] = track_history.get(track_id, 0) + 1
                 frames_seen = track_history[track_id]
 
                 if track_id in processed_track_ids:
-                    cv2.putText(frame, "Processed", (x1, y1 - 10),
+                    cv2.putText(frame, "Processed", (cx1, cy1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     continue
 
                 if frames_seen < min_frames_to_confirm:
-                    cv2.putText(frame, f"Tracking... {frames_seen}/{min_frames_to_confirm}",
-                                (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
+                    cv2.putText(frame, f"Tracking Car... {frames_seen}/{min_frames_to_confirm}",
+                                (cx1, cy1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
                     continue
 
                 # ==========================================
-                # STABILITY THRESHOLD REACHED! PROCESS EXIT
+                # CAR IS STABLE! FIND PLATE INSIDE CAR CROP
                 # ==========================================
-
-                # 1. CROP PLATE & ENHANCE
-                plate_crop = frame[max(0, y1):min(frame_height, y2),
-                                   max(0, x1):min(frame_width, x2)]
+                car_crop_bgr = frame[cy1:cy2, cx1:cx2]
+                if car_crop_bgr.size == 0:
+                    continue
+                
+                # Run plate model ONLY on the isolated car crop
+                plate_results = plate_model(car_crop_bgr, conf=PLATE_CONFIDENCE_THRESHOLD, verbose=False)
+                
+                if plate_results[0].boxes is None or len(plate_results[0].boxes) == 0:
+                    continue  # Car is stable, but plate isn't visible yet.
+                    
+                # Get the highest confidence plate
+                plate_box = plate_results[0].boxes.xyxy[0].cpu().numpy().astype(int)
+                px1, py1, px2, py2 = plate_box
+                
+                # Clamp plate coordinates to car crop boundaries
+                px1, py1 = max(0, px1), max(0, py1)
+                px2, py2 = min(car_crop_bgr.shape[1], px2), min(car_crop_bgr.shape[0], py2)
+                
+                plate_crop = car_crop_bgr[py1:py2, px1:px2]
                 if plate_crop.size == 0:
                     continue
+                    
+                # Draw Plate Box on the main frame (Green) by offsetting car coordinates
+                cv2.rectangle(frame, (cx1 + px1, cy1 + py1), (cx1 + px2, cy1 + py2), (0, 255, 0), 2)
 
                 try:
                     enhanced_plate = process_plate_pipeline(plate_crop)
                 except Exception as e:
-                    print(f"⚠️ [SYSTEM] Skipping plate ID {track_id} due to enhancement failure: {e}")
+                    print(f"⚠️ [SYSTEM] Skipping plate on car ID {track_id} due to enhancement failure: {e}")
                     continue
 
-                # 2. YOLO OCR EXTRACTION
+                # OCR EXTRACTION
                 plate_text = extract_plate_text(ocr_model, enhanced_plate)
 
                 if not plate_text:
                     continue
 
                 processed_track_ids.add(track_id)
-                print(f"\n🚗 [EXIT GATE] Stable Plate Detected: {plate_text} (Track ID: {track_id})")
-
-                # 3. EXPAND BOX FOR CAR CROP
-                w = x2 - x1
-                h = y2 - y1
-
-                car_x1 = max(0, int(x1 - (w * EXPANSION_FACTOR)))
-                car_x2 = min(frame_width, int(x2 + (w * EXPANSION_FACTOR)))
-                car_y1 = max(0, int(y1 - (h * EXPANSION_FACTOR)))
-                car_y2 = min(frame_height, int(y2 + (h * EXPANSION_FACTOR)))
-
-                car_crop_bgr = frame[car_y1:car_y2, car_x1:car_x2]
-
-                cv2.rectangle(frame, (car_x1, car_y1), (car_x2, car_y2), (255, 0, 0), 2)
-                cv2.putText(frame, plate_text, (x1, y1 - 30),
+                print(f"\n🚗 [EXIT GATE] Stable Car & Plate Detected: {plate_text} (Track ID: {track_id})")
+                
+                cv2.putText(frame, plate_text, (cx1, cy1 - 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                # 4. GET QWEN ATTRIBUTES (SYNCHRONOUS)
-                if car_crop_bgr.size > 0:
-                    car_crop_rgb = cv2.cvtColor(car_crop_bgr, cv2.COLOR_BGR2RGB)
-                    pil_image = Image.fromarray(car_crop_rgb)
+                # ==========================================
+                # GET ATTRIBUTES (COLOR + BRAND) SYNCHRONOUSLY
+                # ==========================================
+                print(f"   [SYSTEM] Identifying attributes for {plate_text}...")
+                attributes = get_car_attributes(brand_model, car_crop_bgr)
 
-                    print(f"   [SYSTEM] Running Qwen to identify {plate_text} (synchronous)...")
-                    attributes = get_qwen_attributes(qwen_model, processor, device, pil_image)
+                print(f"   [SYSTEM] Detected: {attributes['color']} - {attributes['model']}")
+                print(f"   [SYSTEM] Verifying with backend...")
 
-                    if attributes:
-                        print(f"   [SYSTEM] Detected: {attributes['color']} - {attributes['model']}")
-                        print(f"   [SYSTEM] Verifying with backend...")
+                # ==========================================
+                # VERIFY AND EXIT
+                # ==========================================
+                resp_data = verify_and_exit(plate_text, attributes['color'], attributes['model'], car_crop_bgr)
 
-                        # 5. VERIFY AND EXIT
-                        resp_data = verify_and_exit(plate_text, attributes['color'], attributes['model'], car_crop_bgr)
-
-                        if resp_data:
-                            allowed = resp_data.get('allowed', False)
-                            if allowed:
-                                if resp_data.get('exit_type') == 'free':
-                                    cv2.putText(frame, f"{plate_text} - FREE EXIT OK", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                                else:
-                                    cv2.putText(frame, f"{plate_text} - EXIT OK", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                            else:
-                                exit_type = resp_data.get('exit_type')
-                                alert_type = resp_data.get('alert_type')
-                                
-                                if exit_type == 'unpaid':
-                                    cv2.putText(frame, f"{plate_text} - PLEASE PAY FIRST", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                elif exit_type == 'grace_expired':
-                                    cv2.putText(frame, f"{plate_text} - GRACE EXPIRED", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                elif alert_type in ['color_mismatch', 'model_mismatch']:
-                                    cv2.putText(frame, f"{plate_text} - VEHICLE MISMATCH", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                elif alert_type == 'plate_not_found':
-                                    cv2.putText(frame, f"{plate_text} - PLATE NOT FOUND", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-                                else:
-                                    cv2.putText(frame, f"{plate_text} - EXIT DENIED", (car_x1, car_y1 - 10),
-                                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                if resp_data:
+                    allowed = resp_data.get('allowed', False)
+                    if allowed:
+                        if resp_data.get('exit_type') == 'free':
+                            cv2.putText(frame, f"{plate_text} - FREE EXIT OK", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                        else:
+                            cv2.putText(frame, f"{plate_text} - EXIT OK", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                     else:
-                        print(f"   [SYSTEM] Qwen failed — cannot verify exit for {plate_text}")
-                        cv2.putText(frame, "VERIFY FAILED", (car_x1, car_y1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                        exit_type = resp_data.get('exit_type')
+                        alert_type = resp_data.get('alert_type')
+                        
+                        if exit_type == 'unpaid':
+                            cv2.putText(frame, f"{plate_text} - PLEASE PAY FIRST", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                        elif exit_type == 'grace_expired':
+                            cv2.putText(frame, f"{plate_text} - GRACE EXPIRED", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                        elif alert_type in ['color_mismatch', 'model_mismatch']:
+                            cv2.putText(frame, f"{plate_text} - VEHICLE MISMATCH", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                        elif alert_type == 'plate_not_found':
+                            cv2.putText(frame, f"{plate_text} - PLATE NOT FOUND", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                        else:
+                            cv2.putText(frame, f"{plate_text} - EXIT DENIED", (cx1, cy1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
         if out:
             out.write(frame)
@@ -543,7 +542,7 @@ def process_video(input_video, output_video, save_video):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="SmartPark Exit Gate LPR — License Plate Recognition with YOLO + YOLO OCR + Qwen Attributes"
+        description="SmartPark Exit Gate LPR — Pure YOLO Pipeline + OpenCV Color Engine"
     )
     parser.add_argument("--video", type=str, default=INPUT_VIDEO,
                         help="Path to the input video file.")

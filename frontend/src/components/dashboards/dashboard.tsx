@@ -1,17 +1,22 @@
 import MetricsCards from '@/components/dashboard/MetricsCards';
 import PeakHoursChart from '@/components/dashboard/PeakHoursChart';
 import RevenueTrendsChart from '@/components/dashboard/RevenueTrendsChart';
+import DemographicsChart from '@/components/dashboard/DemographicsChart';
+import PaymentInsightsChart from '@/components/dashboard/PaymentInsightsChart';
 import LiveCameraSimulation from '@/components/dashboard/LiveCameraSimulation';
-import ExitAlerts from '@/components/dashboard/ExitAlerts';
 
-export default function Dashboard({ 
-  metrics, 
-  peakHours, 
-  revenueTrends 
-}: { 
-  metrics: any, 
-  peakHours: any, 
-  revenueTrends: any 
+export default function Dashboard({
+  metrics,
+  peakHours,
+  revenueTrends,
+  demographics,
+  paymentInsights
+}: {
+  metrics: any,
+  peakHours: any,
+  revenueTrends: any,
+  demographics: any,
+  paymentInsights: any
 }) {
   return (
     <div className="p-6 md:p-8 flex-1 space-y-6 bg-slate-50 border-t min-h-[calc(100vh-64px)] animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -22,13 +27,16 @@ export default function Dashboard({
         </p>
       </div>
 
-      <MetricsCards initialData={metrics} />
-      
-      <ExitAlerts />
+      <MetricsCards initialData={metrics} paymentInsights={paymentInsights} />
 
       <div className="grid gap-6 md:grid-cols-3">
         <PeakHoursChart initialData={peakHours} />
         <RevenueTrendsChart initialData={revenueTrends} />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <DemographicsChart initialData={demographics} />
+        <PaymentInsightsChart initialData={paymentInsights} />
       </div>
 
       <LiveCameraSimulation />

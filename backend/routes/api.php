@@ -10,28 +10,13 @@ use App\Http\Controllers\RoiController;
 use App\Http\Controllers\AiQueryController;
 use App\Http\Controllers\ExitAlertController;
 
-// Public routes
+// ==============================================================================
+// a. Sanctum-protected: Needs an admin token (Next.js dashboard).
+// ==============================================================================
+// (Note: Login and Register are public but belong to the dashboard auth flow)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Python Webhook (would normally have its own auth/token, but public for mockup)
-Route::post('/webhooks/congestion', [RoiController::class, 'webhookCongestionAlert']);
-
-// AI Agent — SQL execution endpoint (called by the Python AI service)
-Route::post('/ai/query', [AiQueryController::class, 'execute']);
-
-// Python LPR — creates a new parking session when a car enters
-Route::post('/parking-sessions/car-entry', [ParkingSessionController::class, 'carEntry']);
-
-// Python LPR — exit gate verification
-Route::post('/parking-sessions/car-exit', [ParkingSessionController::class, 'carExit']);
-
-// Mobile App routes (Public, for Drivers)
-Route::get('/parking-sessions/plate/{license_plate}', [ParkingSessionController::class, 'findByPlate']);
-Route::post('/parking-sessions/{id}/pay', [ParkingSessionController::class, 'pay']);
-Route::post('/parking-sessions/{id}/pay-additional', [ParkingSessionController::class, 'payAdditional']);
-
-// Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     // Auth & Profile
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -60,3 +45,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/exit-alerts/{id}/dismiss', [ExitAlertController::class, 'dismiss']);
     Route::put('/exit-alerts/{id}/override', [ExitAlertController::class, 'override']);
 });
+
+// ==============================================================================
+// b. Public mobile: No login required (Mobile app).
+// ==============================================================================
+Route::get('/parking-sessions/plate/{license_plate}', [ParkingSessionController::class, 'findByPlate']);
+Route::post('/parking-sessions/{id}/pay', [ParkingSessionController::class, 'pay']);
+Route::post('/parking-sessions/{id}/pay-additional', [ParkingSessionController::class, 'payAdditional']);
+
+// ==============================================================================
+// c. Machine-to-machine: Trusted internal network only (Python services).
+// ==============================================================================
+Route::post('/webhooks/congestion', [RoiController::class, 'webhookCongestionAlert']);
+Route::post('/ai/query', [AiQueryController::class, 'execute']);
+Route::post('/parking-sessions/car-entry', [ParkingSessionController::class, 'carEntry']);
+Route::post('/parking-sessions/car-exit', [ParkingSessionController::class, 'carExit']);

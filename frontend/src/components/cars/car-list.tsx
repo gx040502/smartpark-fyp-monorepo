@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, Clock } from 'lucide-react';
 
 export default function CarList({ initialData, searchParams, filterOptions }: {
   initialData: CarListPaginationParams,
@@ -35,6 +35,8 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
   const [dateField, setDateField] = useState(searchParams?.date_field || 'entry_time');
   const [dateFrom, setDateFrom] = useState(searchParams?.date_from || '');
   const [dateTo, setDateTo] = useState(searchParams?.date_to || '');
+  const [timeFrom, setTimeFrom] = useState(searchParams?.time_from || '');
+  const [timeTo, setTimeTo] = useState(searchParams?.time_to || '');
 
   const colors = filterOptions?.colors || [];
   const models = filterOptions?.models || [];
@@ -69,8 +71,10 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
   const clearDateRange = () => {
     setDateFrom('');
     setDateTo('');
+    setTimeFrom('');
+    setTimeTo('');
     setDateField('entry_time');
-    updateMultipleQuery({ date_from: '', date_to: '', date_field: '' });
+    updateMultipleQuery({ date_from: '', date_to: '', date_field: '', time_from: '', time_to: '' });
   };
 
   const handleSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -92,7 +96,7 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
     }
   };
 
-  const hasActiveDateFilter = dateFrom || dateTo;
+  const hasActiveDateFilter = dateFrom || dateTo || timeFrom || timeTo;
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -154,9 +158,9 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
             </div>
           </div>
 
-          {/* Date Range Filter Row */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Date Range:</span>
+          {/* Date & Time Range Filter Row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Date & Time:</span>
             <Select value={dateField} onValueChange={(val) => { setDateField(val); if (dateFrom || dateTo) updateQuery('date_field', val); }}>
               <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Field" />
@@ -166,21 +170,39 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
                 <SelectItem value="exit_time">Exit Time</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              type="date"
-              className="w-full sm:w-[160px]"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); updateMultipleQuery({ date_from: e.target.value, date_to: dateTo, date_field: dateField }); }}
-              placeholder="From"
-            />
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="date"
+                className="w-full sm:w-[150px]"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); updateMultipleQuery({ date_from: e.target.value, date_to: dateTo, date_field: dateField, time_from: timeFrom, time_to: timeTo }); }}
+                placeholder="From Date"
+              />
+              <Input
+                type="time"
+                className="w-full sm:w-[120px]"
+                value={timeFrom}
+                onChange={(e) => { setTimeFrom(e.target.value); updateMultipleQuery({ date_from: dateFrom, date_to: dateTo, date_field: dateField, time_from: e.target.value, time_to: timeTo }); }}
+                placeholder="From Time"
+              />
+            </div>
             <span className="text-sm text-muted-foreground hidden sm:inline">to</span>
-            <Input
-              type="date"
-              className="w-full sm:w-[160px]"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); updateMultipleQuery({ date_from: dateFrom, date_to: e.target.value, date_field: dateField }); }}
-              placeholder="To"
-            />
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="date"
+                className="w-full sm:w-[150px]"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); updateMultipleQuery({ date_from: dateFrom, date_to: e.target.value, date_field: dateField, time_from: timeFrom, time_to: timeTo }); }}
+                placeholder="To Date"
+              />
+              <Input
+                type="time"
+                className="w-full sm:w-[120px]"
+                value={timeTo}
+                onChange={(e) => { setTimeTo(e.target.value); updateMultipleQuery({ date_from: dateFrom, date_to: dateTo, date_field: dateField, time_from: timeFrom, time_to: e.target.value }); }}
+                placeholder="To Time"
+              />
+            </div>
             {hasActiveDateFilter && (
               <Button variant="ghost" size="sm" onClick={clearDateRange} className="text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4 mr-1" /> Clear
@@ -198,6 +220,7 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
                 <TableHead>Colour</TableHead>
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Entry Time</TableHead>
+                <TableHead>Exit Time</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Amount (RM)</TableHead>
                 <TableHead>Status</TableHead>
@@ -207,6 +230,7 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
               {data.length > 0 ? (
                 data.map((row: any) => {
                   const entryTime = new Date(row.entry_time);
+                  const exitTime = row.exit_time ? new Date(row.exit_time) : null;
 
                   return (
                     <TableRow
@@ -231,6 +255,14 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
                         {entryTime.toLocaleDateString()} <br />
                         <span className="text-muted-foreground">{entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {exitTime ? (
+                          <>{exitTime.toLocaleDateString()} <br />
+                          <span className="text-muted-foreground">{exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></>
+                        ) : (
+                          <span className="text-muted-foreground">--</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">{row.duration || '--'}</TableCell>
                       <TableCell>
                         {parseFloat(row.amount_due) > 0
@@ -245,7 +277,7 @@ export default function CarList({ initialData, searchParams, filterOptions }: {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     <CardDescription>No parking sessions found matching your criteria.</CardDescription>
                   </TableCell>
                 </TableRow>

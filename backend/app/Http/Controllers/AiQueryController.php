@@ -47,7 +47,9 @@ class AiQueryController extends Controller
             Log::info('AI Query executing SQL', ['sql' => $sql]);
 
             // Set a 5-second query timeout
-            DB::statement("SET SESSION MAX_EXECUTION_TIME = 5000");
+            if (DB::connection()->getDriverName() === 'mysql') {
+                DB::statement("SET SESSION MAX_EXECUTION_TIME = 5000");
+            }
 
             $results = DB::select($sql);
 

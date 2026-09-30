@@ -14,7 +14,7 @@ export async function serverFetch(endpoint: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
   headers.set('Content-Type', 'application/json');
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
@@ -22,8 +22,7 @@ export async function serverFetch(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
-    // Add cache revalidation rules if needed, Next 14/15 caches vigorously by default
-    cache: 'no-store' 
+    cache: 'no-store'
   });
 
   if (response.status === 401) {

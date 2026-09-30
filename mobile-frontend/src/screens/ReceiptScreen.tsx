@@ -5,6 +5,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { User } from 'lucide-react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Receipt'>;
@@ -15,9 +18,84 @@ export default function ReceiptScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { receiptData, sessionData } = route.params;
 
-  const handleDownloadPDF = () => {
-    // In a real app, this would generate and download a PDF
-    Alert.alert('Download', 'PDF receipt downloaded successfully!');
+  const handleDownloadPDF = async () => {
+    try {
+      const isAdditional = receiptData.payment_type === 'additional';
+      const paymentLabel = isAdditional ? 'Additional Payment' : 'Original Payment';
+      const accent = isAdditional ? '#dc3545' : '#007BFF';
+
+      const html = `
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <style>
+              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 30px; color: #1a1a1a; background: #fff; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .header h1 { font-size: 22px; margin: 0 0 4px; }
+              .header p { font-size: 13px; color: #666; margin: 0; }
+              .accent-bar { height: 4px; background: ${accent}; border-radius: 4px; margin-bottom: 24px; }
+              .badge { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px; background: ${isAdditional ? '#FFF3CD' : '#E8F5E9'}; color: ${isAdditional ? '#856404' : '#2E7D32'}; }
+              .card { border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+              .card-body { padding: 20px; }
+              .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #e0e0e0; }
+              .row:last-child { border-bottom: none; }
+              .label { color: #888; font-size: 14px; }
+              .value { font-weight: 700; font-size: 14px; text-align: right; }
+              .total-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0 0; margin-top: 8px; border-top: 2px solid #e0e0e0; }
+              .total-label { font-size: 16px; font-weight: 700; }
+              .total-value { font-size: 24px; font-weight: 700; color: ${accent}; }
+              .info-box { background: #EBF5FF; padding: 14px; border-radius: 8px; text-align: center; font-size: 12px; color: #0056b3; margin-bottom: 16px; }
+              .footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 30px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>SmartPark</h1>
+              <p>Parking Receipt</p>
+            </div>
+            <div class="accent-bar"></div>
+            <div style="text-align:center;"><span class="badge">${paymentLabel}</span></div>
+            <div class="card">
+              <div class="card-body">
+                ${receiptData.receipt_number ? `<div class="row"><span class="label">Receipt No.</span><span class="value">${receiptData.receipt_number}</span></div>` : ''}
+                <div class="row"><span class="label">License Plate</span><span class="value">${sessionData.license_plate}</span></div>
+                <div class="row"><span class="label">Entry Time</span><span class="value">${formatDate(sessionData.entry_time)}</span></div>
+                <div class="row"><span class="label">Payment Date</span><span class="value">${formatDate(receiptData.payment_date)}</span></div>
+                <div class="row"><span class="label">Payment Method</span><span class="value">${receiptData.payment_method}</span></div>
+                <div class="total-row">
+                  <span class="total-label">TOTAL PAID</span>
+                  <span class="total-value">RM ${Number(receiptData.total_amount).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            ${sessionData.grace_end_time ? `<div class="info-box"><strong>Grace Period Deadline</strong><br/>Please exit before ${formatDate(sessionData.grace_end_time)}</div>` : ''}
+            <div class="info-box">Please exit the parking area within 15 minutes of payment.</div>
+            <div class="footer">Thank you for using SmartPark</div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html });
+
+      // Move the PDF to a shareable location (fixes Android permission error)
+      const pdfName = `SmartPark_Receipt_${receiptData.receipt_number || Date.now()}.pdf`;
+      const shareableUri = `${FileSystem.documentDirectory}${pdfName}`;
+      await FileSystem.moveAsync({ from: uri, to: shareableUri });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(shareableUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Save or Share Receipt PDF',
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('Success', `PDF saved to: ${shareableUri}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+      console.error('PDF generation error:', error);
+    }
   };
 
   const handleReturnHome = () => {

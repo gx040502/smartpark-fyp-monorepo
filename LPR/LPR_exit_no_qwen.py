@@ -31,14 +31,16 @@ from ultralytics import YOLO
 
 load_dotenv()
 
-# Model Paths
+# Model Paths (relative to project root)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAR_MODEL_PATH = "yolov8n.pt"
-PLATE_MODEL_PATH = r"G:\My Drive\FYP\LICENSE PLATE\outputs\License-Plate-Recognition-11\yolo11_run_02\weights\best.pt"
-OCR_MODEL_PATH = r"G:\My Drive\FYP\OCR\outputs\CatEye-ALPR-v3-3\yolo8_run_01\weights\best.pt"
-BRAND_MODEL_PATH = r"G:\My Drive\FYP\CAR_CLASSIFICATION\outputs\version4_split\yolo_cls_run_01\weights\best.pt"  # <-- Your new YOLO brand classifier
+PLATE_MODEL_PATH = os.path.join(_PROJECT_ROOT, "plate.pt")
+OCR_MODEL_PATH = os.path.join(_PROJECT_ROOT, "OCR.pt")
+BRAND_MODEL_PATH = os.path.join(_PROJECT_ROOT, "car make.pt")
 
 # Video I/O  (overridable via CLI args)
-INPUT_VIDEO = r"E:\BACKUP\UTAR video\ONE CAR\VQM568 black tesla 4.5.mp4"
+#INPUT_VIDEO = r"C:\Users\Tan Gyap Xun\Desktop\DEGREE\FYP\FYP PROJECT 2\PRESENTATION\VNT2602 black proton 3.mp4"
+INPUT_VIDEO = r"C:\Users\Tan Gyap Xun\Desktop\DEGREE\FYP\FYP PROJECT 2\PRESENTATION\VQM568 black tesla 4.5.mp4"
 OUTPUT_VIDEO = "lpr_exit_output.mp4"
 SAVE_VIDEO = True
 

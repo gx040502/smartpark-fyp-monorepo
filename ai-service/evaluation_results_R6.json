@@ -1,0 +1,1906 @@
+[
+  {
+    "id": "E01",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, color, model, entry_time, status)",
+    "question": "Show me all the vehicles that are currently still parked in the facility.",
+    "reference_sql": "SELECT license_plate, color, model, entry_time FROM parking_sessions WHERE status = 'ENTER';",
+    "generated_sql": "SELECT license_plate, model, color, entry_time, car_image_path\nFROM parking_sessions\nWHERE status = 'ENTER';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "license_plate": "WU8729",
+        "model": "toyota",
+        "color": "Gray",
+        "entry_time": "2026-08-18 19:55:54",
+        "car_image_path": "sessions/Sj44kEc2nUnrGNIKJnOut3dROloIooGPUA11jlpa.jpg"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "WU8729",
+        "color": "Gray",
+        "model": "toyota",
+        "entry_time": "2026-08-18 19:55:54"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 11.096,
+    "total_latency_s": 11.098
+  },
+  {
+    "id": "E02",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, color, model, entry_time, status)",
+    "question": "List every black car recorded in the system.",
+    "reference_sql": "SELECT license_plate, model, entry_time, status FROM parking_sessions WHERE color = 'Black';",
+    "generated_sql": "SELECT *\nFROM parking_sessions\nWHERE color = 'Black';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (6 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 6,
+    "ref_row_count": 6,
+    "generated_data": [
+      {
+        "id": "8",
+        "license_plate": "VQM568",
+        "color": "Black",
+        "model": "tesla",
+        "car_image_path": "sessions/oPnWXl35kZqLqh5cMPa6CqVhqiKAmjglFaaq3pFe.jpg",
+        "entry_time": "2026-08-18 18:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:17:28",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 07:02:18",
+        "updated_at": "2026-08-18 20:02:28"
+      },
+      {
+        "id": "11",
+        "license_plate": "VPT5051",
+        "color": "Black",
+        "model": "toyota",
+        "car_image_path": "sessions/IfREg6uEoWjC2pt1DgKIyd7F5QEolpP5uD5KbR0b.jpg",
+        "entry_time": "2026-07-27 18:00:54",
+        "exit_time": "2026-07-27 21:12:54",
+        "grace_end_time": "2026-07-27 21:12:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:12:24",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "12",
+        "license_plate": "VNT2602",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/QJR0BrJhArDouqPL9xVX7dz9XYS8OAFLLLK5mml0.jpg",
+        "entry_time": "2026-08-16 17:00:54",
+        "exit_time": "2026-08-16 21:41:54",
+        "grace_end_time": "2026-08-16 21:41:54",
+        "amount_due": "10.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:13:22",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "14",
+        "license_plate": "VNM8527",
+        "color": "Black",
+        "model": "perodua",
+        "car_image_path": "sessions/s1lP2h6BJHFuORI6wDXZfLdp5PZMY9dcoX3qQylh.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:20:04",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 15:21:16",
+        "updated_at": "2026-08-18 20:05:04"
+      },
+      {
+        "id": "19",
+        "license_plate": "VCG3438",
+        "color": "Black",
+        "model": "honda",
+        "car_image_path": "sessions/dJEwNd5zwPSFdvNpyhkgxSMAUnL9uxsGhgNJ2cwv.jpg",
+        "entry_time": "2026-08-15 15:00:54",
+        "exit_time": "2026-08-15 18:27:54",
+        "grace_end_time": "2026-08-15 18:27:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:28:43",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "26",
+        "license_plate": "BQP8708",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/WrPLKIWcxJs1x6m5zh1MxJqbjXltdhHZ2vqqduhq.jpg",
+        "entry_time": "2026-08-17 14:00:54",
+        "exit_time": "2026-08-17 17:33:54",
+        "grace_end_time": "2026-08-17 17:33:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:36:01",
+        "updated_at": "2026-08-18 20:00:54"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "VQM568",
+        "model": "tesla",
+        "entry_time": "2026-08-18 18:00:54",
+        "status": "PAID"
+      },
+      {
+        "license_plate": "VPT5051",
+        "model": "toyota",
+        "entry_time": "2026-07-27 18:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VNT2602",
+        "model": "proton",
+        "entry_time": "2026-08-16 17:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VNM8527",
+        "model": "perodua",
+        "entry_time": "2026-08-18 17:00:54",
+        "status": "PAID"
+      },
+      {
+        "license_plate": "VCG3438",
+        "model": "honda",
+        "entry_time": "2026-08-15 15:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BQP8708",
+        "model": "proton",
+        "entry_time": "2026-08-17 14:00:54",
+        "status": "COMPLETED"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.576,
+    "total_latency_s": 2.577
+  },
+  {
+    "id": "E03",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, entry_time, exit_time, status)",
+    "question": "Which vehicles have already completed their parking session and left?",
+    "reference_sql": "SELECT license_plate, entry_time, exit_time FROM parking_sessions WHERE status = 'COMPLETED';",
+    "generated_sql": "SELECT license_plate, model, color, entry_time, exit_time, amount_due, status\nFROM parking_sessions\nWHERE status = 'COMPLETED';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (9 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 9,
+    "ref_row_count": 9,
+    "generated_data": [
+      {
+        "license_plate": "BDR572",
+        "model": "proton",
+        "color": "Gray",
+        "entry_time": "2026-06-30 15:00:54",
+        "exit_time": "2026-06-30 16:47:54",
+        "amount_due": "4.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "WRS8850",
+        "model": "toyota",
+        "color": "Gray",
+        "entry_time": "2026-07-19 15:00:54",
+        "exit_time": "2026-07-19 20:19:54",
+        "amount_due": "12.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VPT5051",
+        "model": "toyota",
+        "color": "Black",
+        "entry_time": "2026-07-27 18:00:54",
+        "exit_time": "2026-07-27 21:12:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VNT2602",
+        "model": "proton",
+        "color": "Black",
+        "entry_time": "2026-08-16 17:00:54",
+        "exit_time": "2026-08-16 21:41:54",
+        "amount_due": "10.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VJT826",
+        "model": "proton",
+        "color": "Blue",
+        "entry_time": "2026-08-14 18:00:54",
+        "exit_time": "2026-08-14 21:23:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VCG3438",
+        "model": "honda",
+        "color": "Black",
+        "entry_time": "2026-08-15 15:00:54",
+        "exit_time": "2026-08-15 18:27:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BBM9234",
+        "model": "toyota",
+        "color": "Red",
+        "entry_time": "2026-08-14 16:00:54",
+        "exit_time": "2026-08-14 18:19:54",
+        "amount_due": "6.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BQN1455",
+        "model": "perodua",
+        "color": "Red",
+        "entry_time": "2026-06-16 16:00:54",
+        "exit_time": "2026-06-16 20:46:54",
+        "amount_due": "10.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BQP8708",
+        "model": "proton",
+        "color": "Black",
+        "entry_time": "2026-08-17 14:00:54",
+        "exit_time": "2026-08-17 17:33:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "BDR572",
+        "entry_time": "2026-06-30 15:00:54",
+        "exit_time": "2026-06-30 16:47:54"
+      },
+      {
+        "license_plate": "WRS8850",
+        "entry_time": "2026-07-19 15:00:54",
+        "exit_time": "2026-07-19 20:19:54"
+      },
+      {
+        "license_plate": "VPT5051",
+        "entry_time": "2026-07-27 18:00:54",
+        "exit_time": "2026-07-27 21:12:54"
+      },
+      {
+        "license_plate": "VNT2602",
+        "entry_time": "2026-08-16 17:00:54",
+        "exit_time": "2026-08-16 21:41:54"
+      },
+      {
+        "license_plate": "VJT826",
+        "entry_time": "2026-08-14 18:00:54",
+        "exit_time": "2026-08-14 21:23:54"
+      },
+      {
+        "license_plate": "VCG3438",
+        "entry_time": "2026-08-15 15:00:54",
+        "exit_time": "2026-08-15 18:27:54"
+      },
+      {
+        "license_plate": "BBM9234",
+        "entry_time": "2026-08-14 16:00:54",
+        "exit_time": "2026-08-14 18:19:54"
+      },
+      {
+        "license_plate": "BQN1455",
+        "entry_time": "2026-06-16 16:00:54",
+        "exit_time": "2026-06-16 20:46:54"
+      },
+      {
+        "license_plate": "BQP8708",
+        "entry_time": "2026-08-17 14:00:54",
+        "exit_time": "2026-08-17 17:33:54"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.804,
+    "total_latency_s": 2.806
+  },
+  {
+    "id": "E04",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, color, model, entry_time, status)",
+    "question": "Show me all Proton vehicles in the system.",
+    "reference_sql": "SELECT license_plate, color, entry_time, status FROM parking_sessions WHERE model = 'proton';",
+    "generated_sql": "SELECT *\nFROM parking_sessions\nWHERE model = 'proton';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (5 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 5,
+    "ref_row_count": 5,
+    "generated_data": [
+      {
+        "id": "1",
+        "license_plate": "BDR572",
+        "color": "Gray",
+        "model": "proton",
+        "car_image_path": "sessions/IL5AsYl1nYuP2lIv4DpnfQhPTqA2zrSaaihEXmTF.jpg",
+        "entry_time": "2026-06-30 15:00:54",
+        "exit_time": "2026-06-30 16:47:54",
+        "grace_end_time": "2026-06-30 16:47:54",
+        "amount_due": "4.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 06:46:56",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "12",
+        "license_plate": "VNT2602",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/QJR0BrJhArDouqPL9xVX7dz9XYS8OAFLLLK5mml0.jpg",
+        "entry_time": "2026-08-16 17:00:54",
+        "exit_time": "2026-08-16 21:41:54",
+        "grace_end_time": "2026-08-16 21:41:54",
+        "amount_due": "10.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:13:22",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "16",
+        "license_plate": "VJT826",
+        "color": "Blue",
+        "model": "proton",
+        "car_image_path": "sessions/SOr7BywEM2XDseRSYsu2YmV1jK9uG91gT7WWLfXv.jpg",
+        "entry_time": "2026-08-14 18:00:54",
+        "exit_time": "2026-08-14 21:23:54",
+        "grace_end_time": "2026-08-14 21:23:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:24:40",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "26",
+        "license_plate": "BQP8708",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/WrPLKIWcxJs1x6m5zh1MxJqbjXltdhHZ2vqqduhq.jpg",
+        "entry_time": "2026-08-17 14:00:54",
+        "exit_time": "2026-08-17 17:33:54",
+        "grace_end_time": "2026-08-17 17:33:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:36:01",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "27",
+        "license_plate": "AMF9050",
+        "color": "White",
+        "model": "proton",
+        "car_image_path": "sessions/H8ERntSiK45mzuxLknop8lUVTebcz2Lv7ZRufDj7.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:23:21",
+        "amount_due": "8.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 15:36:52",
+        "updated_at": "2026-08-18 20:08:21"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "BDR572",
+        "color": "Gray",
+        "entry_time": "2026-06-30 15:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VNT2602",
+        "color": "Black",
+        "entry_time": "2026-08-16 17:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VJT826",
+        "color": "Blue",
+        "entry_time": "2026-08-14 18:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BQP8708",
+        "color": "Black",
+        "entry_time": "2026-08-17 14:00:54",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "AMF9050",
+        "color": "White",
+        "entry_time": "2026-08-18 17:00:54",
+        "status": "PAID"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.546,
+    "total_latency_s": 2.547
+  },
+  {
+    "id": "E05",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, color, model, entry_time)",
+    "question": "Give me the 5 most recent vehicle entries.",
+    "reference_sql": "SELECT license_plate, model, color, entry_time FROM parking_sessions ORDER BY entry_time DESC LIMIT 5;",
+    "generated_sql": "SELECT *\nFROM parking_sessions\nORDER BY entry_time DESC\nLIMIT 5;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (5 rows, order-sensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 5,
+    "ref_row_count": 5,
+    "generated_data": [
+      {
+        "id": "29",
+        "license_plate": "WU8729",
+        "color": "Gray",
+        "model": "toyota",
+        "car_image_path": "sessions/Sj44kEc2nUnrGNIKJnOut3dROloIooGPUA11jlpa.jpg",
+        "entry_time": "2026-08-18 19:55:54",
+        "exit_time": "NULL",
+        "grace_end_time": "NULL",
+        "amount_due": "0.00",
+        "status": "ENTER",
+        "created_at": "2026-08-10 15:39:37",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "8",
+        "license_plate": "VQM568",
+        "color": "Black",
+        "model": "tesla",
+        "car_image_path": "sessions/oPnWXl35kZqLqh5cMPa6CqVhqiKAmjglFaaq3pFe.jpg",
+        "entry_time": "2026-08-18 18:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:17:28",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 07:02:18",
+        "updated_at": "2026-08-18 20:02:28"
+      },
+      {
+        "id": "14",
+        "license_plate": "VNM8527",
+        "color": "Black",
+        "model": "perodua",
+        "car_image_path": "sessions/s1lP2h6BJHFuORI6wDXZfLdp5PZMY9dcoX3qQylh.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:20:04",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 15:21:16",
+        "updated_at": "2026-08-18 20:05:04"
+      },
+      {
+        "id": "27",
+        "license_plate": "AMF9050",
+        "color": "White",
+        "model": "proton",
+        "car_image_path": "sessions/H8ERntSiK45mzuxLknop8lUVTebcz2Lv7ZRufDj7.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:23:21",
+        "amount_due": "8.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 15:36:52",
+        "updated_at": "2026-08-18 20:08:21"
+      },
+      {
+        "id": "26",
+        "license_plate": "BQP8708",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/WrPLKIWcxJs1x6m5zh1MxJqbjXltdhHZ2vqqduhq.jpg",
+        "entry_time": "2026-08-17 14:00:54",
+        "exit_time": "2026-08-17 17:33:54",
+        "grace_end_time": "2026-08-17 17:33:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:36:01",
+        "updated_at": "2026-08-18 20:00:54"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "WU8729",
+        "model": "toyota",
+        "color": "Gray",
+        "entry_time": "2026-08-18 19:55:54"
+      },
+      {
+        "license_plate": "VQM568",
+        "model": "tesla",
+        "color": "Black",
+        "entry_time": "2026-08-18 18:00:54"
+      },
+      {
+        "license_plate": "VNM8527",
+        "model": "perodua",
+        "color": "Black",
+        "entry_time": "2026-08-18 17:00:54"
+      },
+      {
+        "license_plate": "AMF9050",
+        "model": "proton",
+        "color": "White",
+        "entry_time": "2026-08-18 17:00:54"
+      },
+      {
+        "license_plate": "BQP8708",
+        "model": "proton",
+        "color": "Black",
+        "entry_time": "2026-08-17 14:00:54"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.586,
+    "total_latency_s": 2.587
+  },
+  {
+    "id": "E06",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, color, model, entry_time, exit_time, amount_due, status)",
+    "question": "What are the details of the vehicle with plate number AMF9050?",
+    "reference_sql": "SELECT license_plate, color, model, entry_time, exit_time, amount_due, status FROM parking_sessions WHERE license_plate = 'AMF9050';",
+    "generated_sql": "SELECT \n    ps.id,\n    ps.license_plate,\n    ps.model,\n    ps.color,\n    ps.car_image_path,\n    ps.entry_time,\n    ps.exit_time,\n    ps.grace_end_time,\n    ps.amount_due,\n    ps.status,\n    ps.created_at,\n    ps.updated_at\nFROM \n    parking_sessions ps\nWHERE \n    ps.license_plate = 'AMF9050';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "id": "27",
+        "license_plate": "AMF9050",
+        "model": "proton",
+        "color": "White",
+        "car_image_path": "sessions/H8ERntSiK45mzuxLknop8lUVTebcz2Lv7ZRufDj7.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:23:21",
+        "amount_due": "8.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 15:36:52",
+        "updated_at": "2026-08-18 20:08:21"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "AMF9050",
+        "color": "White",
+        "model": "proton",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "amount_due": "8.00",
+        "status": "PAID"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.668,
+    "total_latency_s": 3.669
+  },
+  {
+    "id": "E07",
+    "category": "Easy",
+    "context": "parking_sessions(license_plate, model, amount_due, grace_end_time, status)",
+    "question": "List all vehicles that have paid but have not left the facility yet.",
+    "reference_sql": "SELECT license_plate, model, amount_due, grace_end_time FROM parking_sessions WHERE status = 'PAID';",
+    "generated_sql": "SELECT ps.id, ps.license_plate, ps.model, ps.color, ps.car_image_path, ps.entry_time, ps.grace_end_time, ps.amount_due, ps.status, pr.receipt_number, pr.total_amount, pr.payment_date, pr.payment_method, pr.payment_type\nFROM parking_sessions ps\nJOIN payment_receipts pr ON ps.id = pr.parking_session_id\nWHERE ps.status = 'PAID' AND ps.exit_time IS NULL;",
+    "verdict": "Fail",
+    "failure_type": "Semantic",
+    "detail": "Data mismatch (match mode: column_superset). 0 row(s) missing, 1 unexpected row(s) returned. See 'missing_rows' / 'extra_rows' for actual values.",
+    "match_mode": "column_superset",
+    "gen_row_count": 4,
+    "ref_row_count": 3,
+    "generated_data": [
+      {
+        "id": "8",
+        "license_plate": "VQM568",
+        "model": "tesla",
+        "color": "Black",
+        "car_image_path": "sessions/oPnWXl35kZqLqh5cMPa6CqVhqiKAmjglFaaq3pFe.jpg",
+        "entry_time": "2026-08-18 18:00:54",
+        "grace_end_time": "2026-08-18 20:17:28",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "receipt_number": "RCP-RKGG4SUE",
+        "total_amount": "6.00",
+        "payment_date": "2026-08-18 20:02:28",
+        "payment_method": "Touch n Go",
+        "payment_type": "initial"
+      },
+      {
+        "id": "14",
+        "license_plate": "VNM8527",
+        "model": "perodua",
+        "color": "Black",
+        "car_image_path": "sessions/s1lP2h6BJHFuORI6wDXZfLdp5PZMY9dcoX3qQylh.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "grace_end_time": "2026-08-18 20:20:04",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "receipt_number": "RCP-IRNXPS2U",
+        "total_amount": "6.00",
+        "payment_date": "2026-08-18 19:35:54",
+        "payment_method": "Credit Card",
+        "payment_type": "initial"
+      },
+      {
+        "id": "14",
+        "license_plate": "VNM8527",
+        "model": "perodua",
+        "color": "Black",
+        "car_image_path": "sessions/s1lP2h6BJHFuORI6wDXZfLdp5PZMY9dcoX3qQylh.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "grace_end_time": "2026-08-18 20:20:04",
+        "amount_due": "6.00",
+        "status": "PAID",
+        "receipt_number": "RCP-GWMV7PLR",
+        "total_amount": "2.00",
+        "payment_date": "2026-08-18 20:05:04",
+        "payment_method": "Credit Card",
+        "payment_type": "additional"
+      },
+      {
+        "id": "27",
+        "license_plate": "AMF9050",
+        "model": "proton",
+        "color": "White",
+        "car_image_path": "sessions/H8ERntSiK45mzuxLknop8lUVTebcz2Lv7ZRufDj7.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "grace_end_time": "2026-08-18 20:23:21",
+        "amount_due": "8.00",
+        "status": "PAID",
+        "receipt_number": "RCP-P3JDHW9Q",
+        "total_amount": "8.00",
+        "payment_date": "2026-08-18 20:08:21",
+        "payment_method": "Credit Card",
+        "payment_type": "initial"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "VQM568",
+        "model": "tesla",
+        "amount_due": "6.00",
+        "grace_end_time": "2026-08-18 20:17:28"
+      },
+      {
+        "license_plate": "VNM8527",
+        "model": "perodua",
+        "amount_due": "6.00",
+        "grace_end_time": "2026-08-18 20:20:04"
+      },
+      {
+        "license_plate": "AMF9050",
+        "model": "proton",
+        "amount_due": "8.00",
+        "grace_end_time": "2026-08-18 20:23:21"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [
+      {
+        "license_plate": "VNM8527",
+        "model": "perodua",
+        "amount_due": "6.00",
+        "grace_end_time": "2026-08-18 20:20:04"
+      }
+    ],
+    "llm_latency_s": 3.785,
+    "total_latency_s": 3.787
+  },
+  {
+    "id": "E08",
+    "category": "Easy",
+    "context": "payment_receipts(receipt_number, total_amount, payment_date, payment_method)",
+    "question": "Show all payment records made using Touch n Go.",
+    "reference_sql": "SELECT receipt_number, total_amount, payment_date FROM payment_receipts WHERE payment_method = 'Touch n Go';",
+    "generated_sql": "SELECT *\nFROM payment_receipts\nWHERE payment_method = 'Touch n Go';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (4 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 4,
+    "ref_row_count": 4,
+    "generated_data": [
+      {
+        "id": "2",
+        "receipt_number": "RCP-6LBDQFBL",
+        "parking_session_id": "19",
+        "total_amount": "8.00",
+        "payment_date": "2026-08-15 18:22:54",
+        "payment_method": "Touch n Go",
+        "payment_type": "initial",
+        "created_at": "2026-08-18 20:00:54",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "6",
+        "receipt_number": "RCP-DDPXGLIE",
+        "parking_session_id": "22",
+        "total_amount": "6.00",
+        "payment_date": "2026-08-14 18:14:54",
+        "payment_method": "Touch n Go",
+        "payment_type": "initial",
+        "created_at": "2026-08-18 20:00:54",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "9",
+        "receipt_number": "RCP-JV4LQW2R",
+        "parking_session_id": "25",
+        "total_amount": "10.00",
+        "payment_date": "2026-06-16 20:41:54",
+        "payment_method": "Touch n Go",
+        "payment_type": "initial",
+        "created_at": "2026-08-18 20:00:54",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "11",
+        "receipt_number": "RCP-RKGG4SUE",
+        "parking_session_id": "8",
+        "total_amount": "6.00",
+        "payment_date": "2026-08-18 20:02:28",
+        "payment_method": "Touch n Go",
+        "payment_type": "initial",
+        "created_at": "2026-08-18 20:02:28",
+        "updated_at": "2026-08-18 20:02:28"
+      }
+    ],
+    "reference_data": [
+      {
+        "receipt_number": "RCP-6LBDQFBL",
+        "total_amount": "8.00",
+        "payment_date": "2026-08-15 18:22:54"
+      },
+      {
+        "receipt_number": "RCP-DDPXGLIE",
+        "total_amount": "6.00",
+        "payment_date": "2026-08-14 18:14:54"
+      },
+      {
+        "receipt_number": "RCP-JV4LQW2R",
+        "total_amount": "10.00",
+        "payment_date": "2026-06-16 20:41:54"
+      },
+      {
+        "receipt_number": "RCP-RKGG4SUE",
+        "total_amount": "6.00",
+        "payment_date": "2026-08-18 20:02:28"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.613,
+    "total_latency_s": 2.615
+  },
+  {
+    "id": "E09",
+    "category": "Easy",
+    "context": "exit_alerts(alert_type, license_plate, status, created_at)",
+    "question": "List all exit alerts that are still pending.",
+    "reference_sql": "SELECT alert_type, license_plate, created_at FROM exit_alerts WHERE status = 'PENDING';",
+    "generated_sql": "SELECT *\nFROM exit_alerts\nWHERE status = 'PENDING';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "id": "1",
+        "alert_type": "model_mismatch",
+        "license_plate": "VQM568",
+        "detected_color": "Black",
+        "detected_model": "toyota",
+        "expected_color": "Black",
+        "expected_model": "tesla",
+        "image_path": "alerts/1Eq0SZYx9ZcrRvEMpzWhSNJGAClYefuxP0DRqxux.jpg",
+        "session_id": "8",
+        "status": "PENDING",
+        "created_at": "2026-08-18 20:03:06",
+        "updated_at": "2026-08-18 20:03:06"
+      }
+    ],
+    "reference_data": [
+      {
+        "alert_type": "model_mismatch",
+        "license_plate": "VQM568",
+        "created_at": "2026-08-18 20:03:06"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.591,
+    "total_latency_s": 2.591
+  },
+  {
+    "id": "E10",
+    "category": "Easy",
+    "context": "parking_sessions(model)",
+    "question": "What distinct car makes have been recorded in the parking system?",
+    "reference_sql": "SELECT DISTINCT model FROM parking_sessions;",
+    "generated_sql": "SELECT DISTINCT model\nFROM parking_sessions;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (5 rows, order-insensitive, match mode: exact).",
+    "match_mode": "exact",
+    "gen_row_count": 5,
+    "ref_row_count": 5,
+    "generated_data": [
+      {
+        "model": "proton"
+      },
+      {
+        "model": "toyota"
+      },
+      {
+        "model": "tesla"
+      },
+      {
+        "model": "perodua"
+      },
+      {
+        "model": "honda"
+      }
+    ],
+    "reference_data": [
+      {
+        "model": "proton"
+      },
+      {
+        "model": "toyota"
+      },
+      {
+        "model": "tesla"
+      },
+      {
+        "model": "perodua"
+      },
+      {
+        "model": "honda"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.519,
+    "total_latency_s": 2.521
+  },
+  {
+    "id": "M01",
+    "category": "Medium",
+    "context": "parking_sessions(status)",
+    "question": "How many vehicles are currently parked in the facility?",
+    "reference_sql": "SELECT COUNT(*) AS total_parked FROM parking_sessions WHERE status = 'ENTER';",
+    "generated_sql": "SELECT COUNT(*) AS current_parked_vehicles\nFROM parking_sessions\nWHERE status = 'ENTER';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "current_parked_vehicles": "1"
+      }
+    ],
+    "reference_data": [
+      {
+        "total_parked": "1"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.826,
+    "total_latency_s": 2.826
+  },
+  {
+    "id": "M02",
+    "category": "Medium",
+    "context": "parking_sessions(entry_time)",
+    "question": "How many vehicles entered the facility today?",
+    "reference_sql": "SELECT COUNT(*) AS total_entries FROM parking_sessions WHERE DATE(entry_time) = CURDATE();",
+    "generated_sql": "SELECT COUNT(*) AS vehicle_count\nFROM parking_sessions\nWHERE DATE(entry_time) = CURDATE();",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "vehicle_count": "0"
+      }
+    ],
+    "reference_data": [
+      {
+        "total_entries": "0"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.839,
+    "total_latency_s": 2.84
+  },
+  {
+    "id": "M03",
+    "category": "Medium",
+    "context": "parking_sessions(model)",
+    "question": "Count the number of vehicles for each car make, sorted from most to least.",
+    "reference_sql": "SELECT model AS car_make, COUNT(*) AS total_sessions FROM parking_sessions GROUP BY model ORDER BY total_sessions DESC;",
+    "generated_sql": "SELECT model, COUNT(*) AS vehicle_count\nFROM parking_sessions\nGROUP BY model\nORDER BY vehicle_count DESC;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (5 rows, order-sensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 5,
+    "ref_row_count": 5,
+    "generated_data": [
+      {
+        "model": "proton",
+        "vehicle_count": "5"
+      },
+      {
+        "model": "toyota",
+        "vehicle_count": "4"
+      },
+      {
+        "model": "perodua",
+        "vehicle_count": "2"
+      },
+      {
+        "model": "tesla",
+        "vehicle_count": "1"
+      },
+      {
+        "model": "honda",
+        "vehicle_count": "1"
+      }
+    ],
+    "reference_data": [
+      {
+        "car_make": "proton",
+        "total_sessions": "5"
+      },
+      {
+        "car_make": "toyota",
+        "total_sessions": "4"
+      },
+      {
+        "car_make": "perodua",
+        "total_sessions": "2"
+      },
+      {
+        "car_make": "tesla",
+        "total_sessions": "1"
+      },
+      {
+        "car_make": "honda",
+        "total_sessions": "1"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.878,
+    "total_latency_s": 2.88
+  },
+  {
+    "id": "M04",
+    "category": "Medium",
+    "context": "payment_receipts(total_amount, payment_date)",
+    "question": "What is the total revenue collected today?",
+    "reference_sql": "SELECT SUM(total_amount) AS total_revenue FROM payment_receipts WHERE DATE(payment_date) = CURDATE();",
+    "generated_sql": "SELECT SUM(total_amount) AS total_revenue\nFROM payment_receipts\nWHERE DATE(payment_date) = CURDATE();",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: exact).",
+    "match_mode": "exact",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "total_revenue": "NULL"
+      }
+    ],
+    "reference_data": [
+      {
+        "total_revenue": "NULL"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.938,
+    "total_latency_s": 2.939
+  },
+  {
+    "id": "M05",
+    "category": "Medium",
+    "context": "parking_sessions(entry_time)",
+    "question": "Show the number of vehicle entries for each hour of the day.",
+    "reference_sql": "SELECT HOUR(entry_time) AS hour_of_day, COUNT(*) AS total_entries FROM parking_sessions GROUP BY HOUR(entry_time) ORDER BY hour_of_day;",
+    "generated_sql": "SELECT HOUR(entry_time) AS hour, COUNT(*) AS entry_count\nFROM parking_sessions\nGROUP BY HOUR(entry_time)\nORDER BY hour;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (6 rows, order-sensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 6,
+    "ref_row_count": 6,
+    "generated_data": [
+      {
+        "hour": "14",
+        "entry_count": "1"
+      },
+      {
+        "hour": "15",
+        "entry_count": "3"
+      },
+      {
+        "hour": "16",
+        "entry_count": "2"
+      },
+      {
+        "hour": "17",
+        "entry_count": "3"
+      },
+      {
+        "hour": "18",
+        "entry_count": "3"
+      },
+      {
+        "hour": "19",
+        "entry_count": "1"
+      }
+    ],
+    "reference_data": [
+      {
+        "hour_of_day": "14",
+        "total_entries": "1"
+      },
+      {
+        "hour_of_day": "15",
+        "total_entries": "3"
+      },
+      {
+        "hour_of_day": "16",
+        "total_entries": "2"
+      },
+      {
+        "hour_of_day": "17",
+        "total_entries": "3"
+      },
+      {
+        "hour_of_day": "18",
+        "total_entries": "3"
+      },
+      {
+        "hour_of_day": "19",
+        "total_entries": "1"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.078,
+    "total_latency_s": 3.08
+  },
+  {
+    "id": "M06",
+    "category": "Medium",
+    "context": "parking_sessions(entry_time, exit_time, status)",
+    "question": "What is the average parking duration in minutes for completed sessions?",
+    "reference_sql": "SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)), 2) AS avg_duration_minutes FROM parking_sessions WHERE status = 'COMPLETED' AND exit_time IS NOT NULL;",
+    "generated_sql": "SELECT AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) AS avg_duration\nFROM parking_sessions\nWHERE exit_time IS NOT NULL AND status = 'COMPLETED';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "avg_duration": "216.33"
+      }
+    ],
+    "reference_data": [
+      {
+        "avg_duration_minutes": "216.33"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.299,
+    "total_latency_s": 3.301
+  },
+  {
+    "id": "M07",
+    "category": "Medium",
+    "context": "payment_receipts(payment_method, total_amount)",
+    "question": "Break down the total payments collected by payment method.",
+    "reference_sql": "SELECT payment_method, SUM(total_amount) AS total_collected FROM payment_receipts GROUP BY payment_method;",
+    "generated_sql": "SELECT payment_method, SUM(total_amount) AS total_payments\nFROM payment_receipts\nGROUP BY payment_method;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (2 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 2,
+    "ref_row_count": 2,
+    "generated_data": [
+      {
+        "payment_method": "Credit Card",
+        "total_payments": "66.00"
+      },
+      {
+        "payment_method": "Touch n Go",
+        "total_payments": "30.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "payment_method": "Credit Card",
+        "total_collected": "66.00"
+      },
+      {
+        "payment_method": "Touch n Go",
+        "total_collected": "30.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.894,
+    "total_latency_s": 2.895
+  },
+  {
+    "id": "M08",
+    "category": "Medium",
+    "context": "payment_receipts(payment_type, total_amount)",
+    "question": "How many payments of each payment type have been recorded, and what is the total for each?",
+    "reference_sql": "SELECT payment_type, COUNT(*) AS total_payments, SUM(total_amount) AS total_collected FROM payment_receipts GROUP BY payment_type;",
+    "generated_sql": "SELECT payment_type, COUNT(*) AS payment_count, SUM(total_amount) AS total_amount\nFROM payment_receipts\nGROUP BY payment_type;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (2 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 2,
+    "ref_row_count": 2,
+    "generated_data": [
+      {
+        "payment_type": "initial",
+        "payment_count": "12",
+        "total_amount": "94.00"
+      },
+      {
+        "payment_type": "additional",
+        "payment_count": "1",
+        "total_amount": "2.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "payment_type": "initial",
+        "total_payments": "12",
+        "total_collected": "94.00"
+      },
+      {
+        "payment_type": "additional",
+        "total_payments": "1",
+        "total_collected": "2.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.143,
+    "total_latency_s": 3.145
+  },
+  {
+    "id": "M09",
+    "category": "Medium",
+    "context": "parking_sessions(model)",
+    "question": "Which car makes have more than two recorded parking sessions?",
+    "reference_sql": "SELECT model AS car_make FROM parking_sessions GROUP BY model HAVING COUNT(*) > 2;",
+    "generated_sql": "SELECT model\nFROM parking_sessions\nGROUP BY model\nHAVING COUNT(id) > 2;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (2 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 2,
+    "ref_row_count": 2,
+    "generated_data": [
+      {
+        "model": "proton"
+      },
+      {
+        "model": "toyota"
+      }
+    ],
+    "reference_data": [
+      {
+        "car_make": "proton"
+      },
+      {
+        "car_make": "toyota"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.054,
+    "total_latency_s": 3.056
+  },
+  {
+    "id": "M10",
+    "category": "Medium",
+    "context": "payment_receipts(total_amount, payment_date)",
+    "question": "What was the total revenue collected on each day in August 2026?",
+    "reference_sql": "SELECT DATE(payment_date) AS payment_day, SUM(total_amount) AS daily_revenue FROM payment_receipts WHERE payment_date >= '2026-08-01' AND payment_date < '2026-09-01' GROUP BY DATE(payment_date);",
+    "generated_sql": "SELECT \n    DATE(payment_date) AS payment_day, \n    SUM(total_amount) AS total_revenue\nFROM \n    payment_receipts\nWHERE \n    YEAR(payment_date) = 2026 \n    AND MONTH(payment_date) = 8\nGROUP BY \n    payment_day;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (5 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 5,
+    "ref_row_count": 5,
+    "generated_data": [
+      {
+        "payment_day": "2026-08-18",
+        "total_revenue": "22.00"
+      },
+      {
+        "payment_day": "2026-08-15",
+        "total_revenue": "8.00"
+      },
+      {
+        "payment_day": "2026-08-14",
+        "total_revenue": "14.00"
+      },
+      {
+        "payment_day": "2026-08-16",
+        "total_revenue": "10.00"
+      },
+      {
+        "payment_day": "2026-08-17",
+        "total_revenue": "8.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "payment_day": "2026-08-14",
+        "daily_revenue": "14.00"
+      },
+      {
+        "payment_day": "2026-08-15",
+        "daily_revenue": "8.00"
+      },
+      {
+        "payment_day": "2026-08-16",
+        "daily_revenue": "10.00"
+      },
+      {
+        "payment_day": "2026-08-17",
+        "daily_revenue": "8.00"
+      },
+      {
+        "payment_day": "2026-08-18",
+        "daily_revenue": "22.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.9,
+    "total_latency_s": 3.901
+  },
+  {
+    "id": "H01",
+    "category": "Hard",
+    "context": "parking_sessions(id, model, entry_time, exit_time, status) JOIN payment_receipts(parking_session_id, total_amount)",
+    "question": "For each car make, show the total amount collected and the average parking duration in minutes for completed sessions.",
+    "reference_sql": "SELECT ps.model AS car_make, SUM(pr.total_amount) AS total_collected, ROUND(AVG(TIMESTAMPDIFF(MINUTE, ps.entry_time, ps.exit_time)), 2) AS avg_duration_minutes FROM parking_sessions ps JOIN payment_receipts pr ON pr.parking_session_id = ps.id WHERE ps.status = 'COMPLETED' GROUP BY ps.model;",
+    "generated_sql": "SELECT \n    p.model, \n    SUM(pr.total_amount) AS total_amount_collected, \n    AVG(TIMESTAMPDIFF(MINUTE, p.entry_time, p.exit_time)) AS avg_duration\nFROM \n    parking_sessions p\nJOIN \n    payment_receipts pr ON p.id = pr.parking_session_id\nWHERE \n    p.status = 'COMPLETED'\nGROUP BY \n    p.model;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (4 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 4,
+    "ref_row_count": 4,
+    "generated_data": [
+      {
+        "model": "proton",
+        "total_amount_collected": "30.00",
+        "avg_duration": "201.00"
+      },
+      {
+        "model": "toyota",
+        "total_amount_collected": "26.00",
+        "avg_duration": "216.67"
+      },
+      {
+        "model": "honda",
+        "total_amount_collected": "8.00",
+        "avg_duration": "207.00"
+      },
+      {
+        "model": "perodua",
+        "total_amount_collected": "10.00",
+        "avg_duration": "286.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "car_make": "proton",
+        "total_collected": "30.00",
+        "avg_duration_minutes": "201.00"
+      },
+      {
+        "car_make": "toyota",
+        "total_collected": "26.00",
+        "avg_duration_minutes": "216.67"
+      },
+      {
+        "car_make": "honda",
+        "total_collected": "8.00",
+        "avg_duration_minutes": "207.00"
+      },
+      {
+        "car_make": "perodua",
+        "total_collected": "10.00",
+        "avg_duration_minutes": "286.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 4.371,
+    "total_latency_s": 4.374
+  },
+  {
+    "id": "H02",
+    "category": "Hard",
+    "context": "parking_sessions(id, license_plate, model, status) LEFT JOIN payment_receipts(id, parking_session_id)",
+    "question": "List the vehicles that are currently parked and have no payment receipt recorded.",
+    "reference_sql": "SELECT ps.license_plate, ps.model, ps.entry_time FROM parking_sessions ps LEFT JOIN payment_receipts pr ON pr.parking_session_id = ps.id WHERE ps.status = 'ENTER' AND pr.id IS NULL;",
+    "generated_sql": "SELECT ps.id, ps.license_plate, ps.model, ps.color, ps.entry_time, ps.amount_due, ps.status\nFROM parking_sessions ps\nLEFT JOIN payment_receipts pr ON ps.id = pr.parking_session_id\nWHERE ps.status = 'ENTER' AND pr.id IS NULL;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "id": "29",
+        "license_plate": "WU8729",
+        "model": "toyota",
+        "color": "Gray",
+        "entry_time": "2026-08-18 19:55:54",
+        "amount_due": "0.00",
+        "status": "ENTER"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "WU8729",
+        "model": "toyota",
+        "entry_time": "2026-08-18 19:55:54"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.791,
+    "total_latency_s": 3.793
+  },
+  {
+    "id": "H03",
+    "category": "Hard",
+    "context": "parking_sessions(id, license_plate, model) JOIN payment_receipts(parking_session_id, total_amount)",
+    "question": "Show the license plate, car make, and total amount paid for the three highest-paying sessions.",
+    "reference_sql": "SELECT ps.license_plate, ps.model AS car_make, SUM(pr.total_amount) AS total_paid FROM parking_sessions ps JOIN payment_receipts pr ON pr.parking_session_id = ps.id GROUP BY ps.id, ps.license_plate, ps.model ORDER BY total_paid DESC LIMIT 3;",
+    "generated_sql": "SELECT \n    ps.license_plate, \n    ps.model, \n    SUM(pr.total_amount) AS total_amount_paid\nFROM \n    parking_sessions ps\nJOIN \n    payment_receipts pr ON ps.id = pr.parking_session_id\nGROUP BY \n    ps.license_plate, \n    ps.model\nORDER BY \n    total_amount_paid DESC\nLIMIT 3;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (3 rows, order-sensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 3,
+    "ref_row_count": 3,
+    "generated_data": [
+      {
+        "license_plate": "WRS8850",
+        "model": "toyota",
+        "total_amount_paid": "12.00"
+      },
+      {
+        "license_plate": "BQN1455",
+        "model": "perodua",
+        "total_amount_paid": "10.00"
+      },
+      {
+        "license_plate": "VNT2602",
+        "model": "proton",
+        "total_amount_paid": "10.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "WRS8850",
+        "car_make": "toyota",
+        "total_paid": "12.00"
+      },
+      {
+        "license_plate": "BQN1455",
+        "car_make": "perodua",
+        "total_paid": "10.00"
+      },
+      {
+        "license_plate": "VNT2602",
+        "car_make": "proton",
+        "total_paid": "10.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 4.098,
+    "total_latency_s": 4.1
+  },
+  {
+    "id": "H04",
+    "category": "Hard",
+    "context": "exit_alerts(license_plate, alert_type, expected_model, detected_model, session_id) JOIN parking_sessions(id, entry_time)",
+    "question": "Which vehicles triggered a car make mismatch alert, showing the expected versus detected make together with the entry time of that session?",
+    "reference_sql": "SELECT ea.license_plate, ea.expected_model, ea.detected_model, ps.entry_time FROM exit_alerts ea JOIN parking_sessions ps ON ea.session_id = ps.id WHERE ea.alert_type = 'model_mismatch';",
+    "generated_sql": "SELECT \n    ps.license_plate,\n    ps.entry_time,\n    ps.model AS expected_model,\n    ea.detected_model\nFROM \n    parking_sessions ps\nJOIN \n    exit_alerts ea ON ps.id = ea.session_id\nWHERE \n    ea.alert_type = 'model_mismatch';",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: exact).",
+    "match_mode": "exact",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "license_plate": "VQM568",
+        "entry_time": "2026-08-18 18:00:54",
+        "expected_model": "tesla",
+        "detected_model": "toyota"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "VQM568",
+        "expected_model": "tesla",
+        "detected_model": "toyota",
+        "entry_time": "2026-08-18 18:00:54"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.744,
+    "total_latency_s": 3.745
+  },
+  {
+    "id": "H05",
+    "category": "Hard",
+    "context": "exit_alerts(session_id, alert_type, status) JOIN parking_sessions(id, license_plate, model, color)",
+    "question": "For every exit alert raised, show the alert type together with the car make and colour recorded for that session.",
+    "reference_sql": "SELECT ea.alert_type, ps.model AS car_make, ps.color FROM exit_alerts ea JOIN parking_sessions ps ON ea.session_id = ps.id;",
+    "generated_sql": "SELECT \n    ea.alert_type,\n    ps.model,\n    ps.color\nFROM \n    exit_alerts ea\nJOIN \n    parking_sessions ps ON ea.session_id = ps.id;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "alert_type": "model_mismatch",
+        "model": "tesla",
+        "color": "Black"
+      }
+    ],
+    "reference_data": [
+      {
+        "alert_type": "model_mismatch",
+        "car_make": "tesla",
+        "color": "Black"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 3.22,
+    "total_latency_s": 3.221
+  },
+  {
+    "id": "H06",
+    "category": "Hard",
+    "context": "parking_sessions(license_plate, model, amount_due, status)",
+    "question": "Show every session whose amount due is higher than the average amount due across all sessions.",
+    "reference_sql": "SELECT license_plate, model, amount_due, status FROM parking_sessions WHERE amount_due > (SELECT AVG(amount_due) FROM parking_sessions);",
+    "generated_sql": "SELECT *\nFROM parking_sessions\nWHERE amount_due > (SELECT AVG(amount_due) FROM parking_sessions);",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (8 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",
+    "match_mode": "column_superset",
+    "gen_row_count": 8,
+    "ref_row_count": 8,
+    "generated_data": [
+      {
+        "id": "4",
+        "license_plate": "WRS8850",
+        "color": "Gray",
+        "model": "toyota",
+        "car_image_path": "sessions/kbYHA0zASGJoEFSRX6PthhK1ipXKqKPi94VjZQr2.jpg",
+        "entry_time": "2026-07-19 15:00:54",
+        "exit_time": "2026-07-19 20:19:54",
+        "grace_end_time": "2026-07-19 20:19:54",
+        "amount_due": "12.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 06:52:28",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "11",
+        "license_plate": "VPT5051",
+        "color": "Black",
+        "model": "toyota",
+        "car_image_path": "sessions/IfREg6uEoWjC2pt1DgKIyd7F5QEolpP5uD5KbR0b.jpg",
+        "entry_time": "2026-07-27 18:00:54",
+        "exit_time": "2026-07-27 21:12:54",
+        "grace_end_time": "2026-07-27 21:12:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:12:24",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "12",
+        "license_plate": "VNT2602",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/QJR0BrJhArDouqPL9xVX7dz9XYS8OAFLLLK5mml0.jpg",
+        "entry_time": "2026-08-16 17:00:54",
+        "exit_time": "2026-08-16 21:41:54",
+        "grace_end_time": "2026-08-16 21:41:54",
+        "amount_due": "10.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:13:22",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "16",
+        "license_plate": "VJT826",
+        "color": "Blue",
+        "model": "proton",
+        "car_image_path": "sessions/SOr7BywEM2XDseRSYsu2YmV1jK9uG91gT7WWLfXv.jpg",
+        "entry_time": "2026-08-14 18:00:54",
+        "exit_time": "2026-08-14 21:23:54",
+        "grace_end_time": "2026-08-14 21:23:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:24:40",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "19",
+        "license_plate": "VCG3438",
+        "color": "Black",
+        "model": "honda",
+        "car_image_path": "sessions/dJEwNd5zwPSFdvNpyhkgxSMAUnL9uxsGhgNJ2cwv.jpg",
+        "entry_time": "2026-08-15 15:00:54",
+        "exit_time": "2026-08-15 18:27:54",
+        "grace_end_time": "2026-08-15 18:27:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:28:43",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "25",
+        "license_plate": "BQN1455",
+        "color": "Red",
+        "model": "perodua",
+        "car_image_path": "sessions/LX5jaEAnG7kpvTr59dspVKf9Q7RhI1xipTD8DeHm.jpg",
+        "entry_time": "2026-06-16 16:00:54",
+        "exit_time": "2026-06-16 20:46:54",
+        "grace_end_time": "2026-06-16 20:46:54",
+        "amount_due": "10.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:35:06",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "26",
+        "license_plate": "BQP8708",
+        "color": "Black",
+        "model": "proton",
+        "car_image_path": "sessions/WrPLKIWcxJs1x6m5zh1MxJqbjXltdhHZ2vqqduhq.jpg",
+        "entry_time": "2026-08-17 14:00:54",
+        "exit_time": "2026-08-17 17:33:54",
+        "grace_end_time": "2026-08-17 17:33:54",
+        "amount_due": "8.00",
+        "status": "COMPLETED",
+        "created_at": "2026-08-10 15:36:01",
+        "updated_at": "2026-08-18 20:00:54"
+      },
+      {
+        "id": "27",
+        "license_plate": "AMF9050",
+        "color": "White",
+        "model": "proton",
+        "car_image_path": "sessions/H8ERntSiK45mzuxLknop8lUVTebcz2Lv7ZRufDj7.jpg",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "grace_end_time": "2026-08-18 20:23:21",
+        "amount_due": "8.00",
+        "status": "PAID",
+        "created_at": "2026-08-10 15:36:52",
+        "updated_at": "2026-08-18 20:08:21"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "WRS8850",
+        "model": "toyota",
+        "amount_due": "12.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VPT5051",
+        "model": "toyota",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VNT2602",
+        "model": "proton",
+        "amount_due": "10.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VJT826",
+        "model": "proton",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "VCG3438",
+        "model": "honda",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BQN1455",
+        "model": "perodua",
+        "amount_due": "10.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "BQP8708",
+        "model": "proton",
+        "amount_due": "8.00",
+        "status": "COMPLETED"
+      },
+      {
+        "license_plate": "AMF9050",
+        "model": "proton",
+        "amount_due": "8.00",
+        "status": "PAID"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 2.81,
+    "total_latency_s": 2.813
+  },
+  {
+    "id": "H07",
+    "category": "Hard",
+    "context": "parking_sessions(id, model) LEFT JOIN exit_alerts(session_id)",
+    "question": "For each car make, what percentage of its sessions have triggered an exit alert?",
+    "reference_sql": "SELECT ps.model AS car_make, ROUND(COUNT(DISTINCT ea.session_id) * 100.0 / COUNT(DISTINCT ps.id), 2) AS alert_percentage FROM parking_sessions ps LEFT JOIN exit_alerts ea ON ea.session_id = ps.id GROUP BY ps.model;",
+    "generated_sql": "SELECT \n    p.model,\n    ROUND(SUM(CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END) / COUNT(p.id) * 100, 2) AS alert_percentage\nFROM \n    parking_sessions p\nLEFT JOIN \n    exit_alerts e ON p.id = e.session_id\nGROUP BY \n    p.model;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (5 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 5,
+    "ref_row_count": 5,
+    "generated_data": [
+      {
+        "model": "proton",
+        "alert_percentage": "0.00"
+      },
+      {
+        "model": "toyota",
+        "alert_percentage": "0.00"
+      },
+      {
+        "model": "tesla",
+        "alert_percentage": "100.00"
+      },
+      {
+        "model": "perodua",
+        "alert_percentage": "0.00"
+      },
+      {
+        "model": "honda",
+        "alert_percentage": "0.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "car_make": "honda",
+        "alert_percentage": "0.00"
+      },
+      {
+        "car_make": "perodua",
+        "alert_percentage": "0.00"
+      },
+      {
+        "car_make": "proton",
+        "alert_percentage": "0.00"
+      },
+      {
+        "car_make": "tesla",
+        "alert_percentage": "100.00"
+      },
+      {
+        "car_make": "toyota",
+        "alert_percentage": "0.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 4.035,
+    "total_latency_s": 4.037
+  },
+  {
+    "id": "H08",
+    "category": "Hard",
+    "context": "parking_sessions(id, license_plate, model) JOIN payment_receipts(parking_session_id, total_amount, payment_type) x2",
+    "question": "List the sessions that received an additional payment, showing both the initial amount and the additional amount.",
+    "reference_sql": "SELECT ps.license_plate, ps.model AS car_make, initial_pay.total_amount AS initial_amount, extra_pay.total_amount AS additional_amount FROM parking_sessions ps JOIN payment_receipts initial_pay ON initial_pay.parking_session_id = ps.id AND initial_pay.payment_type = 'initial' JOIN payment_receipts extra_pay ON extra_pay.parking_session_id = ps.id AND extra_pay.payment_type = 'additional';",
+    "generated_sql": "SELECT \n    ps.id AS session_id,\n    ps.license_plate,\n    ps.entry_time,\n    ps.exit_time,\n    pr1.total_amount AS initial_amount,\n    pr2.total_amount AS additional_amount\nFROM \n    parking_sessions ps\nJOIN \n    payment_receipts pr1 ON ps.id = pr1.parking_session_id AND pr1.payment_type = 'initial'\nJOIN \n    payment_receipts pr2 ON ps.id = pr2.parking_session_id AND pr2.payment_type = 'additional';",
+    "verdict": "Fail",
+    "failure_type": "Semantic",
+    "detail": "Data mismatch (match mode: column_mismatch). 1 row(s) missing, 1 unexpected row(s) returned. See 'missing_rows' / 'extra_rows' for actual values.",
+    "match_mode": "column_mismatch",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "session_id": "14",
+        "license_plate": "VNM8527",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "initial_amount": "6.00",
+        "additional_amount": "2.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "license_plate": "VNM8527",
+        "car_make": "perodua",
+        "initial_amount": "6.00",
+        "additional_amount": "2.00"
+      }
+    ],
+    "missing_rows": [
+      {
+        "license_plate": "VNM8527",
+        "car_make": "perodua",
+        "initial_amount": "6.00",
+        "additional_amount": "2.00"
+      }
+    ],
+    "extra_rows": [
+      {
+        "session_id": "14",
+        "license_plate": "VNM8527",
+        "entry_time": "2026-08-18 17:00:54",
+        "exit_time": "NULL",
+        "initial_amount": "6.00",
+        "additional_amount": "2.00"
+      }
+    ],
+    "llm_latency_s": 4.777,
+    "total_latency_s": 4.779
+  },
+  {
+    "id": "H09",
+    "category": "Hard",
+    "context": "payment_receipts(total_amount, payment_date)",
+    "question": "Which day in August 2026 had the highest revenue, and how much was collected?",
+    "reference_sql": "SELECT DATE(payment_date) AS payment_day, SUM(total_amount) AS daily_revenue FROM payment_receipts WHERE payment_date >= '2026-08-01' AND payment_date < '2026-09-01' GROUP BY DATE(payment_date) ORDER BY daily_revenue DESC LIMIT 1;",
+    "generated_sql": "SELECT \n    DATE(payment_date) AS payment_day, \n    SUM(total_amount) AS total_revenue\nFROM \n    payment_receipts\nWHERE \n    YEAR(payment_date) = 2026 \n    AND MONTH(payment_date) = 8\nGROUP BY \n    payment_day\nORDER BY \n    total_revenue DESC\nLIMIT 1;",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (1 rows, order-sensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 1,
+    "ref_row_count": 1,
+    "generated_data": [
+      {
+        "payment_day": "2026-08-18",
+        "total_revenue": "22.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "payment_day": "2026-08-18",
+        "daily_revenue": "22.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 4.001,
+    "total_latency_s": 4.002
+  },
+  {
+    "id": "H10",
+    "category": "Hard",
+    "context": "parking_sessions(model, entry_time, exit_time)",
+    "question": "Show the car makes whose average parking duration is longer than the overall average parking duration.",
+    "reference_sql": "SELECT model AS car_make, ROUND(AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)), 2) AS avg_duration_minutes FROM parking_sessions WHERE exit_time IS NOT NULL GROUP BY model HAVING AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) > (SELECT AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) FROM parking_sessions WHERE exit_time IS NOT NULL);",
+    "generated_sql": "SELECT model, AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) AS avg_duration\nFROM parking_sessions\nWHERE exit_time IS NOT NULL\nGROUP BY model\nHAVING avg_duration > (SELECT AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) AS avg_duration\n                      FROM parking_sessions\n                      WHERE exit_time IS NOT NULL);",
+    "verdict": "Pass",
+    "failure_type": "",
+    "detail": "Result sets equivalent (2 rows, order-insensitive, match mode: positional).",
+    "match_mode": "positional",
+    "gen_row_count": 2,
+    "ref_row_count": 2,
+    "generated_data": [
+      {
+        "model": "toyota",
+        "avg_duration": "216.67"
+      },
+      {
+        "model": "perodua",
+        "avg_duration": "286.00"
+      }
+    ],
+    "reference_data": [
+      {
+        "car_make": "toyota",
+        "avg_duration_minutes": "216.67"
+      },
+      {
+        "car_make": "perodua",
+        "avg_duration_minutes": "286.00"
+      }
+    ],
+    "missing_rows": [],
+    "extra_rows": [],
+    "llm_latency_s": 4.161,
+    "total_latency_s": 4.162
+  }
+]

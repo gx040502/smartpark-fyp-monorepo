@@ -1,7 +1,11 @@
 """
 SmartPark AI Agent — Text-to-SQL Service
-FastAPI service that orchestrates LLM inference via HuggingFace
+FastAPI service that orchestrates LLM inference via HuggingFace or local Ollama
 and SQL execution via the Laravel backend.
+
+Supports two inference providers (set PROVIDER in .env):
+  PROVIDER=huggingface  -> HuggingFace Inference API
+  PROVIDER=ollama       -> local Ollama server
 """
 
 import os
@@ -14,19 +18,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
 import httpx
+import requests
 
-from schema_context import SCHEMA_CONTEXT
+from new_schema_context import SCHEMA_CONTEXT
 
 # ==========================================
 # CONFIGURATION
 # ==========================================
 load_dotenv()
 
+PROVIDER = os.getenv("PROVIDER", "huggingface").lower()
 HF_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN", "")
 LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1:8000/api")
 MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-Coder-7B-Instruct")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+
+SQL_TEMPERATURE = 0.1
+SQL_MAX_TOKENS = 300
+ANSWER_TEMPERATURE = 0.3
+ANSWER_MAX_TOKENS = 500
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,8 +55,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# HuggingFace Inference Client
-hf_client = InferenceClient(token=HF_TOKEN)
+# Inference client — only import & initialise HuggingFace when needed
+if PROVIDER == "huggingface":
+    from huggingface_hub import InferenceClient
+    hf_client = InferenceClient(token=HF_TOKEN)
+
+def call_huggingface(messages: list[dict], *, max_tokens: int, temperature: float) -> str:
+    """Call HuggingFace Inference API."""
+    completion = hf_client.chat_completion(
+        model=MODEL_ID,
+        messages=messages,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    return completion.choices[0].message.content or ""
+
+
+def call_ollama(messages: list[dict], *, max_tokens: int, temperature: float) -> str:
+    """Call local Ollama server via its OpenAI-compatible endpoint."""
+    resp = requests.post(
+        f"{OLLAMA_URL}/v1/chat/completions",
+        json={
+            "model": OLLAMA_MODEL,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        },
+        timeout=180,
+    )
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"] or ""
+
+
+def call_model(messages: list[dict], *, max_tokens: int, temperature: float) -> str:
+    """Route to the active inference provider."""
+    if PROVIDER == "ollama":
+        return call_ollama(messages, max_tokens=max_tokens, temperature=temperature)
+    return call_huggingface(messages, max_tokens=max_tokens, temperature=temperature)
+
+
+def active_model_name() -> str:
+    return OLLAMA_MODEL if PROVIDER == "ollama" else MODEL_ID
 
 # ==========================================
 # REQUEST / RESPONSE MODELS
@@ -176,7 +227,7 @@ def generate_answer_prompt(user_question: str, sql: str, result: dict) -> str:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": MODEL_ID}
+    return {"status": "ok", "provider": PROVIDER, "model": active_model_name()}
 
 
 @app.post("/generate")
@@ -207,17 +258,15 @@ async def generate(request: GenerateRequest):
             # ---- STEP 1: Generate SQL ----
             sql_prompt = generate_sql_prompt(user_message)
 
-            logger.info("Calling HuggingFace for SQL generation...")
-            sql_completion = hf_client.chat_completion(
-                model=MODEL_ID,
-                messages=[
+            logger.info(f"Calling {PROVIDER} ({active_model_name()}) for SQL generation...")
+            sql_response = call_model(
+                [
                     {"role": "system", "content": "You are a SQL expert. Generate only MySQL SELECT queries."},
                     {"role": "user", "content": sql_prompt},
                 ],
-                max_tokens=300,
-                temperature=0.1,
+                max_tokens=SQL_MAX_TOKENS,
+                temperature=SQL_TEMPERATURE,
             )
-            sql_response = sql_completion.choices[0].message.content or ""
 
             logger.info(f"LLM SQL response: {sql_response}")
 
@@ -256,17 +305,15 @@ async def generate(request: GenerateRequest):
             # ---- STEP 3: Generate natural language answer ----
             answer_prompt = generate_answer_prompt(user_message, sql, result)
 
-            logger.info("Calling HuggingFace for answer generation...")
-            answer_completion = hf_client.chat_completion(
-                model=MODEL_ID,
-                messages=[
+            logger.info(f"Calling {PROVIDER} ({active_model_name()}) for answer generation...")
+            answer_response = call_model(
+                [
                     {"role": "system", "content": "You are a helpful parking management assistant."},
                     {"role": "user", "content": answer_prompt},
                 ],
-                max_tokens=500,
-                temperature=0.3,
+                max_tokens=ANSWER_MAX_TOKENS,
+                temperature=ANSWER_TEMPERATURE,
             )
-            answer_response = answer_completion.choices[0].message.content or ""
 
             logger.info(f"Answer: {answer_response[:200]}...")
 

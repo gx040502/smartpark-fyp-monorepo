@@ -10,6 +10,8 @@ export async function getCars(queryParams: {
   date_from?: string,
   date_to?: string,
   date_field?: string,
+  time_from?: string,
+  time_to?: string,
   page?: string
 }) {
   try {
@@ -21,6 +23,8 @@ export async function getCars(queryParams: {
     if (queryParams.date_from) queryUrl += `&date_from=${queryParams.date_from}`;
     if (queryParams.date_to) queryUrl += `&date_to=${queryParams.date_to}`;
     if (queryParams.date_field && queryParams.date_field !== 'entry_time') queryUrl += `&date_field=${queryParams.date_field}`;
+    if (queryParams.time_from) queryUrl += `&time_from=${queryParams.time_from}`;
+    if (queryParams.time_to) queryUrl += `&time_to=${queryParams.time_to}`;
 
     const res = await serverFetch(queryUrl);
     if (!res.ok) return null;

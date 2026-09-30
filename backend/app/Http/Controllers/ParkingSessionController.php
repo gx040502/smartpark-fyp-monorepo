@@ -56,7 +56,7 @@ class ParkingSessionController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->query('status'));
+            $query->where('status', strtoupper($request->query('status')));
         }
 
         if ($request->filled('color')) {
@@ -73,10 +73,22 @@ class ParkingSessionController extends Controller
             $dateField = 'entry_time';
         }
         if ($request->filled('date_from')) {
-            $query->whereDate($dateField, '>=', $request->query('date_from'));
+            $dateFrom = $request->query('date_from');
+            if ($request->filled('time_from')) {
+                // Full datetime comparison when time is provided
+                $query->where($dateField, '>=', $dateFrom . ' ' . $request->query('time_from') . ':00');
+            } else {
+                $query->whereDate($dateField, '>=', $dateFrom);
+            }
         }
         if ($request->filled('date_to')) {
-            $query->whereDate($dateField, '<=', $request->query('date_to'));
+            $dateTo = $request->query('date_to');
+            if ($request->filled('time_to')) {
+                // Full datetime comparison when time is provided
+                $query->where($dateField, '<=', $dateTo . ' ' . $request->query('time_to') . ':59');
+            } else {
+                $query->whereDate($dateField, '<=', $dateTo);
+            }
         }
         
         // Default sorting

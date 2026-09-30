@@ -26,6 +26,8 @@ export default async function Page({
       date_from: resolvedParams.date_from,
       date_to: resolvedParams.date_to,
       date_field: resolvedParams.date_field,
+      time_from: resolvedParams.time_from,
+      time_to: resolvedParams.time_to,
     }),
     getCarFilterOptions(),
   ]);

@@ -142,7 +142,7 @@ class SetupDemoData extends Command
             'receipt_number'     => 'RCP-' . strtoupper(Str::random(8)),
             'total_amount'       => $amountDue,
             'payment_date'       => $paymentTime,
-            'payment_method'     => 'E-WALLET',
+            'payment_method'     => ['Touch n Go', 'Credit Card'][array_rand(['Touch n Go', 'Credit Card'])],
             'payment_type'       => 'initial',
         ]);
         $this->info("✓ Setup [Grace Period Car] (Plate: {$session->license_plate}) - Grace period expired 10 mins ago.");
@@ -210,8 +210,7 @@ class SetupDemoData extends Command
         $amountDue = $session->calculateParkingFee($paymentDate);
         $session->update(['amount_due' => $amountDue]);
 
-        $methods = ['CREDIT_CARD', 'CASH', 'E-WALLET'];
-        $types = ['KIOSK', 'MOBILE_APP', 'MANUAL'];
+        $methods = ['Touch n Go', 'Credit Card'];
 
         PaymentReceipt::create([
             'parking_session_id' => $session->id,
@@ -219,7 +218,7 @@ class SetupDemoData extends Command
             'total_amount'       => $amountDue,
             'payment_date'       => $paymentDate,
             'payment_method'     => $methods[array_rand($methods)],
-            'payment_type'       => $types[array_rand($types)],
+            'payment_type'       => 'initial',
         ]);
     }
 }

@@ -30,8 +30,9 @@ import requests as http_requests
 # 1. CONFIGURATION
 # ==============================================================================================================
 
-# YOLO model for vehicle detection
-YOLO_MODEL_PATH = r"G:\My Drive\FYP\CAR MODEL\outputs\car_row\yolo11_run_01\weights\best.pt"
+# YOLO model for vehicle detection (relative to project root)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+YOLO_MODEL_PATH = os.path.join(_PROJECT_ROOT, "cars.pt")
 
 # Directory to save uploaded videos
 UPLOAD_DIR = "uploads"
@@ -42,8 +43,8 @@ CONFIDENCE_THRESHOLD = 0.2
 IOU_THRESHOLD = 0.2  # Intersection Over Union threshold for NMS (overlap filtering)
 
 # Congestion thresholds
-MIN_VEHICLES_FOR_CONGESTION = 3     # Must have more than 3 vehicles in ROI
-MIN_AVG_DWELL_TIME_SECONDS = 4    # Average dwell must exceed 10 seconds
+MIN_VEHICLES_FOR_CONGESTION = 3   # Must have more than 3 vehicles in ROI
+MIN_AVG_DWELL_TIME_SECONDS = 4    # Average dwell must exceed 4 seconds
 
 # Laravel webhook for congestion grace extension
 LARAVEL_WEBHOOK_URL = "http://127.0.0.1:8000/api/webhooks/congestion"

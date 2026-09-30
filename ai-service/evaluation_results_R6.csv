@@ -1,0 +1,180 @@
+id,category,context,question,reference_sql,generated_sql,verdict,failure_type,detail,match_mode,gen_row_count,ref_row_count,missing_rows,extra_rows,llm_latency_s,total_latency_s
+E01,Easy,"parking_sessions(license_plate, color, model, entry_time, status)",Show me all the vehicles that are currently still parked in the facility.,"SELECT license_plate, color, model, entry_time FROM parking_sessions WHERE status = 'ENTER';","SELECT license_plate, model, color, entry_time, car_image_path
+FROM parking_sessions
+WHERE status = 'ENTER';",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,1,1,[],[],11.096,11.098
+E02,Easy,"parking_sessions(license_plate, color, model, entry_time, status)",List every black car recorded in the system.,"SELECT license_plate, model, entry_time, status FROM parking_sessions WHERE color = 'Black';","SELECT *
+FROM parking_sessions
+WHERE color = 'Black';",Pass,,"Result sets equivalent (6 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,6,6,[],[],2.576,2.577
+E03,Easy,"parking_sessions(license_plate, entry_time, exit_time, status)",Which vehicles have already completed their parking session and left?,"SELECT license_plate, entry_time, exit_time FROM parking_sessions WHERE status = 'COMPLETED';","SELECT license_plate, model, color, entry_time, exit_time, amount_due, status
+FROM parking_sessions
+WHERE status = 'COMPLETED';",Pass,,"Result sets equivalent (9 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,9,9,[],[],2.804,2.806
+E04,Easy,"parking_sessions(license_plate, color, model, entry_time, status)",Show me all Proton vehicles in the system.,"SELECT license_plate, color, entry_time, status FROM parking_sessions WHERE model = 'proton';","SELECT *
+FROM parking_sessions
+WHERE model = 'proton';",Pass,,"Result sets equivalent (5 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,5,5,[],[],2.546,2.547
+E05,Easy,"parking_sessions(license_plate, color, model, entry_time)",Give me the 5 most recent vehicle entries.,"SELECT license_plate, model, color, entry_time FROM parking_sessions ORDER BY entry_time DESC LIMIT 5;","SELECT *
+FROM parking_sessions
+ORDER BY entry_time DESC
+LIMIT 5;",Pass,,"Result sets equivalent (5 rows, order-sensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,5,5,[],[],2.586,2.587
+E06,Easy,"parking_sessions(license_plate, color, model, entry_time, exit_time, amount_due, status)",What are the details of the vehicle with plate number AMF9050?,"SELECT license_plate, color, model, entry_time, exit_time, amount_due, status FROM parking_sessions WHERE license_plate = 'AMF9050';","SELECT 
+    ps.id,
+    ps.license_plate,
+    ps.model,
+    ps.color,
+    ps.car_image_path,
+    ps.entry_time,
+    ps.exit_time,
+    ps.grace_end_time,
+    ps.amount_due,
+    ps.status,
+    ps.created_at,
+    ps.updated_at
+FROM 
+    parking_sessions ps
+WHERE 
+    ps.license_plate = 'AMF9050';",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,1,1,[],[],3.668,3.669
+E07,Easy,"parking_sessions(license_plate, model, amount_due, grace_end_time, status)",List all vehicles that have paid but have not left the facility yet.,"SELECT license_plate, model, amount_due, grace_end_time FROM parking_sessions WHERE status = 'PAID';","SELECT ps.id, ps.license_plate, ps.model, ps.color, ps.car_image_path, ps.entry_time, ps.grace_end_time, ps.amount_due, ps.status, pr.receipt_number, pr.total_amount, pr.payment_date, pr.payment_method, pr.payment_type
+FROM parking_sessions ps
+JOIN payment_receipts pr ON ps.id = pr.parking_session_id
+WHERE ps.status = 'PAID' AND ps.exit_time IS NULL;",Fail,Semantic,"Data mismatch (match mode: column_superset). 0 row(s) missing, 1 unexpected row(s) returned. See 'missing_rows' / 'extra_rows' for actual values.",column_superset,4,3,[],"[{""license_plate"": ""VNM8527"", ""model"": ""perodua"", ""amount_due"": ""6.00"", ""grace_end_time"": ""2026-08-18 20:20:04""}]",3.785,3.787
+E08,Easy,"payment_receipts(receipt_number, total_amount, payment_date, payment_method)",Show all payment records made using Touch n Go.,"SELECT receipt_number, total_amount, payment_date FROM payment_receipts WHERE payment_method = 'Touch n Go';","SELECT *
+FROM payment_receipts
+WHERE payment_method = 'Touch n Go';",Pass,,"Result sets equivalent (4 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,4,4,[],[],2.613,2.615
+E09,Easy,"exit_alerts(alert_type, license_plate, status, created_at)",List all exit alerts that are still pending.,"SELECT alert_type, license_plate, created_at FROM exit_alerts WHERE status = 'PENDING';","SELECT *
+FROM exit_alerts
+WHERE status = 'PENDING';",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,1,1,[],[],2.591,2.591
+E10,Easy,parking_sessions(model),What distinct car makes have been recorded in the parking system?,SELECT DISTINCT model FROM parking_sessions;,"SELECT DISTINCT model
+FROM parking_sessions;",Pass,,"Result sets equivalent (5 rows, order-insensitive, match mode: exact).",exact,5,5,[],[],2.519,2.521
+M01,Medium,parking_sessions(status),How many vehicles are currently parked in the facility?,SELECT COUNT(*) AS total_parked FROM parking_sessions WHERE status = 'ENTER';,"SELECT COUNT(*) AS current_parked_vehicles
+FROM parking_sessions
+WHERE status = 'ENTER';",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: positional).",positional,1,1,[],[],2.826,2.826
+M02,Medium,parking_sessions(entry_time),How many vehicles entered the facility today?,SELECT COUNT(*) AS total_entries FROM parking_sessions WHERE DATE(entry_time) = CURDATE();,"SELECT COUNT(*) AS vehicle_count
+FROM parking_sessions
+WHERE DATE(entry_time) = CURDATE();",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: positional).",positional,1,1,[],[],2.839,2.84
+M03,Medium,parking_sessions(model),"Count the number of vehicles for each car make, sorted from most to least.","SELECT model AS car_make, COUNT(*) AS total_sessions FROM parking_sessions GROUP BY model ORDER BY total_sessions DESC;","SELECT model, COUNT(*) AS vehicle_count
+FROM parking_sessions
+GROUP BY model
+ORDER BY vehicle_count DESC;",Pass,,"Result sets equivalent (5 rows, order-sensitive, match mode: positional).",positional,5,5,[],[],2.878,2.88
+M04,Medium,"payment_receipts(total_amount, payment_date)",What is the total revenue collected today?,SELECT SUM(total_amount) AS total_revenue FROM payment_receipts WHERE DATE(payment_date) = CURDATE();,"SELECT SUM(total_amount) AS total_revenue
+FROM payment_receipts
+WHERE DATE(payment_date) = CURDATE();",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: exact).",exact,1,1,[],[],2.938,2.939
+M05,Medium,parking_sessions(entry_time),Show the number of vehicle entries for each hour of the day.,"SELECT HOUR(entry_time) AS hour_of_day, COUNT(*) AS total_entries FROM parking_sessions GROUP BY HOUR(entry_time) ORDER BY hour_of_day;","SELECT HOUR(entry_time) AS hour, COUNT(*) AS entry_count
+FROM parking_sessions
+GROUP BY HOUR(entry_time)
+ORDER BY hour;",Pass,,"Result sets equivalent (6 rows, order-sensitive, match mode: positional).",positional,6,6,[],[],3.078,3.08
+M06,Medium,"parking_sessions(entry_time, exit_time, status)",What is the average parking duration in minutes for completed sessions?,"SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)), 2) AS avg_duration_minutes FROM parking_sessions WHERE status = 'COMPLETED' AND exit_time IS NOT NULL;","SELECT AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) AS avg_duration
+FROM parking_sessions
+WHERE exit_time IS NOT NULL AND status = 'COMPLETED';",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: positional).",positional,1,1,[],[],3.299,3.301
+M07,Medium,"payment_receipts(payment_method, total_amount)",Break down the total payments collected by payment method.,"SELECT payment_method, SUM(total_amount) AS total_collected FROM payment_receipts GROUP BY payment_method;","SELECT payment_method, SUM(total_amount) AS total_payments
+FROM payment_receipts
+GROUP BY payment_method;",Pass,,"Result sets equivalent (2 rows, order-insensitive, match mode: positional).",positional,2,2,[],[],2.894,2.895
+M08,Medium,"payment_receipts(payment_type, total_amount)","How many payments of each payment type have been recorded, and what is the total for each?","SELECT payment_type, COUNT(*) AS total_payments, SUM(total_amount) AS total_collected FROM payment_receipts GROUP BY payment_type;","SELECT payment_type, COUNT(*) AS payment_count, SUM(total_amount) AS total_amount
+FROM payment_receipts
+GROUP BY payment_type;",Pass,,"Result sets equivalent (2 rows, order-insensitive, match mode: positional).",positional,2,2,[],[],3.143,3.145
+M09,Medium,parking_sessions(model),Which car makes have more than two recorded parking sessions?,SELECT model AS car_make FROM parking_sessions GROUP BY model HAVING COUNT(*) > 2;,"SELECT model
+FROM parking_sessions
+GROUP BY model
+HAVING COUNT(id) > 2;",Pass,,"Result sets equivalent (2 rows, order-insensitive, match mode: positional).",positional,2,2,[],[],3.054,3.056
+M10,Medium,"payment_receipts(total_amount, payment_date)",What was the total revenue collected on each day in August 2026?,"SELECT DATE(payment_date) AS payment_day, SUM(total_amount) AS daily_revenue FROM payment_receipts WHERE payment_date >= '2026-08-01' AND payment_date < '2026-09-01' GROUP BY DATE(payment_date);","SELECT 
+    DATE(payment_date) AS payment_day, 
+    SUM(total_amount) AS total_revenue
+FROM 
+    payment_receipts
+WHERE 
+    YEAR(payment_date) = 2026 
+    AND MONTH(payment_date) = 8
+GROUP BY 
+    payment_day;",Pass,,"Result sets equivalent (5 rows, order-insensitive, match mode: positional).",positional,5,5,[],[],3.9,3.901
+H01,Hard,"parking_sessions(id, model, entry_time, exit_time, status) JOIN payment_receipts(parking_session_id, total_amount)","For each car make, show the total amount collected and the average parking duration in minutes for completed sessions.","SELECT ps.model AS car_make, SUM(pr.total_amount) AS total_collected, ROUND(AVG(TIMESTAMPDIFF(MINUTE, ps.entry_time, ps.exit_time)), 2) AS avg_duration_minutes FROM parking_sessions ps JOIN payment_receipts pr ON pr.parking_session_id = ps.id WHERE ps.status = 'COMPLETED' GROUP BY ps.model;","SELECT 
+    p.model, 
+    SUM(pr.total_amount) AS total_amount_collected, 
+    AVG(TIMESTAMPDIFF(MINUTE, p.entry_time, p.exit_time)) AS avg_duration
+FROM 
+    parking_sessions p
+JOIN 
+    payment_receipts pr ON p.id = pr.parking_session_id
+WHERE 
+    p.status = 'COMPLETED'
+GROUP BY 
+    p.model;",Pass,,"Result sets equivalent (4 rows, order-insensitive, match mode: positional).",positional,4,4,[],[],4.371,4.374
+H02,Hard,"parking_sessions(id, license_plate, model, status) LEFT JOIN payment_receipts(id, parking_session_id)",List the vehicles that are currently parked and have no payment receipt recorded.,"SELECT ps.license_plate, ps.model, ps.entry_time FROM parking_sessions ps LEFT JOIN payment_receipts pr ON pr.parking_session_id = ps.id WHERE ps.status = 'ENTER' AND pr.id IS NULL;","SELECT ps.id, ps.license_plate, ps.model, ps.color, ps.entry_time, ps.amount_due, ps.status
+FROM parking_sessions ps
+LEFT JOIN payment_receipts pr ON ps.id = pr.parking_session_id
+WHERE ps.status = 'ENTER' AND pr.id IS NULL;",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,1,1,[],[],3.791,3.793
+H03,Hard,"parking_sessions(id, license_plate, model) JOIN payment_receipts(parking_session_id, total_amount)","Show the license plate, car make, and total amount paid for the three highest-paying sessions.","SELECT ps.license_plate, ps.model AS car_make, SUM(pr.total_amount) AS total_paid FROM parking_sessions ps JOIN payment_receipts pr ON pr.parking_session_id = ps.id GROUP BY ps.id, ps.license_plate, ps.model ORDER BY total_paid DESC LIMIT 3;","SELECT 
+    ps.license_plate, 
+    ps.model, 
+    SUM(pr.total_amount) AS total_amount_paid
+FROM 
+    parking_sessions ps
+JOIN 
+    payment_receipts pr ON ps.id = pr.parking_session_id
+GROUP BY 
+    ps.license_plate, 
+    ps.model
+ORDER BY 
+    total_amount_paid DESC
+LIMIT 3;",Pass,,"Result sets equivalent (3 rows, order-sensitive, match mode: positional).",positional,3,3,[],[],4.098,4.1
+H04,Hard,"exit_alerts(license_plate, alert_type, expected_model, detected_model, session_id) JOIN parking_sessions(id, entry_time)","Which vehicles triggered a car make mismatch alert, showing the expected versus detected make together with the entry time of that session?","SELECT ea.license_plate, ea.expected_model, ea.detected_model, ps.entry_time FROM exit_alerts ea JOIN parking_sessions ps ON ea.session_id = ps.id WHERE ea.alert_type = 'model_mismatch';","SELECT 
+    ps.license_plate,
+    ps.entry_time,
+    ps.model AS expected_model,
+    ea.detected_model
+FROM 
+    parking_sessions ps
+JOIN 
+    exit_alerts ea ON ps.id = ea.session_id
+WHERE 
+    ea.alert_type = 'model_mismatch';",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: exact).",exact,1,1,[],[],3.744,3.745
+H05,Hard,"exit_alerts(session_id, alert_type, status) JOIN parking_sessions(id, license_plate, model, color)","For every exit alert raised, show the alert type together with the car make and colour recorded for that session.","SELECT ea.alert_type, ps.model AS car_make, ps.color FROM exit_alerts ea JOIN parking_sessions ps ON ea.session_id = ps.id;","SELECT 
+    ea.alert_type,
+    ps.model,
+    ps.color
+FROM 
+    exit_alerts ea
+JOIN 
+    parking_sessions ps ON ea.session_id = ps.id;",Pass,,"Result sets equivalent (1 rows, order-insensitive, match mode: positional).",positional,1,1,[],[],3.22,3.221
+H06,Hard,"parking_sessions(license_plate, model, amount_due, status)",Show every session whose amount due is higher than the average amount due across all sessions.,"SELECT license_plate, model, amount_due, status FROM parking_sessions WHERE amount_due > (SELECT AVG(amount_due) FROM parking_sessions);","SELECT *
+FROM parking_sessions
+WHERE amount_due > (SELECT AVG(amount_due) FROM parking_sessions);",Pass,,"Result sets equivalent (8 rows, order-insensitive, match mode: column_superset). Generated query returned additional columns beyond those requested.",column_superset,8,8,[],[],2.81,2.813
+H07,Hard,"parking_sessions(id, model) LEFT JOIN exit_alerts(session_id)","For each car make, what percentage of its sessions have triggered an exit alert?","SELECT ps.model AS car_make, ROUND(COUNT(DISTINCT ea.session_id) * 100.0 / COUNT(DISTINCT ps.id), 2) AS alert_percentage FROM parking_sessions ps LEFT JOIN exit_alerts ea ON ea.session_id = ps.id GROUP BY ps.model;","SELECT 
+    p.model,
+    ROUND(SUM(CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END) / COUNT(p.id) * 100, 2) AS alert_percentage
+FROM 
+    parking_sessions p
+LEFT JOIN 
+    exit_alerts e ON p.id = e.session_id
+GROUP BY 
+    p.model;",Pass,,"Result sets equivalent (5 rows, order-insensitive, match mode: positional).",positional,5,5,[],[],4.035,4.037
+H08,Hard,"parking_sessions(id, license_plate, model) JOIN payment_receipts(parking_session_id, total_amount, payment_type) x2","List the sessions that received an additional payment, showing both the initial amount and the additional amount.","SELECT ps.license_plate, ps.model AS car_make, initial_pay.total_amount AS initial_amount, extra_pay.total_amount AS additional_amount FROM parking_sessions ps JOIN payment_receipts initial_pay ON initial_pay.parking_session_id = ps.id AND initial_pay.payment_type = 'initial' JOIN payment_receipts extra_pay ON extra_pay.parking_session_id = ps.id AND extra_pay.payment_type = 'additional';","SELECT 
+    ps.id AS session_id,
+    ps.license_plate,
+    ps.entry_time,
+    ps.exit_time,
+    pr1.total_amount AS initial_amount,
+    pr2.total_amount AS additional_amount
+FROM 
+    parking_sessions ps
+JOIN 
+    payment_receipts pr1 ON ps.id = pr1.parking_session_id AND pr1.payment_type = 'initial'
+JOIN 
+    payment_receipts pr2 ON ps.id = pr2.parking_session_id AND pr2.payment_type = 'additional';",Fail,Semantic,"Data mismatch (match mode: column_mismatch). 1 row(s) missing, 1 unexpected row(s) returned. See 'missing_rows' / 'extra_rows' for actual values.",column_mismatch,1,1,"[{""license_plate"": ""VNM8527"", ""car_make"": ""perodua"", ""initial_amount"": ""6.00"", ""additional_amount"": ""2.00""}]","[{""session_id"": ""14"", ""license_plate"": ""VNM8527"", ""entry_time"": ""2026-08-18 17:00:54"", ""exit_time"": ""NULL"", ""initial_amount"": ""6.00"", ""additional_amount"": ""2.00""}]",4.777,4.779
+H09,Hard,"payment_receipts(total_amount, payment_date)","Which day in August 2026 had the highest revenue, and how much was collected?","SELECT DATE(payment_date) AS payment_day, SUM(total_amount) AS daily_revenue FROM payment_receipts WHERE payment_date >= '2026-08-01' AND payment_date < '2026-09-01' GROUP BY DATE(payment_date) ORDER BY daily_revenue DESC LIMIT 1;","SELECT 
+    DATE(payment_date) AS payment_day, 
+    SUM(total_amount) AS total_revenue
+FROM 
+    payment_receipts
+WHERE 
+    YEAR(payment_date) = 2026 
+    AND MONTH(payment_date) = 8
+GROUP BY 
+    payment_day
+ORDER BY 
+    total_revenue DESC
+LIMIT 1;",Pass,,"Result sets equivalent (1 rows, order-sensitive, match mode: positional).",positional,1,1,[],[],4.001,4.002
+H10,Hard,"parking_sessions(model, entry_time, exit_time)",Show the car makes whose average parking duration is longer than the overall average parking duration.,"SELECT model AS car_make, ROUND(AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)), 2) AS avg_duration_minutes FROM parking_sessions WHERE exit_time IS NOT NULL GROUP BY model HAVING AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) > (SELECT AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) FROM parking_sessions WHERE exit_time IS NOT NULL);","SELECT model, AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) AS avg_duration
+FROM parking_sessions
+WHERE exit_time IS NOT NULL
+GROUP BY model
+HAVING avg_duration > (SELECT AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time)) AS avg_duration
+                      FROM parking_sessions
+                      WHERE exit_time IS NOT NULL);",Pass,,"Result sets equivalent (2 rows, order-insensitive, match mode: positional).",positional,2,2,[],[],4.161,4.162

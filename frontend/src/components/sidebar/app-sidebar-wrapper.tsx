@@ -18,6 +18,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/api"
+import { removeAuthCookie } from "@/app/actions/auth"
 
 export function AppSidebarWrapper({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
@@ -52,9 +53,9 @@ export function AppSidebarWrapper({ ...props }: React.ComponentProps<typeof Side
     { name: 'Profile', href: '/profile', icon: UserCircle },
   ]
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem('auth_token')
-    window.location.href = '/login'
+    await removeAuthCookie()
   }
 
   return (
